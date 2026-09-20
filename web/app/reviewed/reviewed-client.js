@@ -63,7 +63,7 @@ export default function ReviewedClient({ rows }) {
       <p className="lede">
         Comparison requests marked Done after a staff check. They stay off Inbox until restored.
       </p>
-      <p style={{ fontSize: 14 }}>{list.length} archived</p>
+      <p className="count">{list.length} archived</p>
 
       <div className="note">
         <strong>Decisions live on this device.</strong> Every clerk action — Done, edited fields,

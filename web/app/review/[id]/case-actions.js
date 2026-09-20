@@ -225,21 +225,15 @@ export default function CaseActions({ rec: initial, id }) {
         </div>
       ) : null}
 
-      <h2 style={{ fontFamily: "Georgia, serif", fontSize: 22 }}>Original message</h2>
-      {rec.body ? (
-        <p className="lede" style={{ whiteSpace: "pre-wrap", maxWidth: "none" }}>
-          {rec.body}
-        </p>
-      ) : (
-        <p className="lede">No body text.</p>
-      )}
+      <h2>Original message</h2>
+      {rec.body ? <p className="body-text">{rec.body}</p> : <p className="lede">No body text.</p>}
       <AttachmentPanel rec={rec} />
 
       <p>
         <Link href={"/mail/" + rec.email_id}>Open full mail view →</Link>
       </p>
 
-      <h2 style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 22 }}>Actions</h2>
+      <h2>Actions</h2>
       {state?.action ? (
         <p>
           Last action: <span className="badge ok">{state.action}</span>
@@ -296,7 +290,7 @@ export default function CaseActions({ rec: initial, id }) {
         </>
       ) : null}
 
-      <div style={{ marginTop: 16 }}>
+      <div className="actions">
         <button className="btn ghost" type="button" onClick={() => act("confirmed_engine")}>
           Keep pending / agree with engine
         </button>

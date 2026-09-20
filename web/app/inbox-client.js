@@ -103,15 +103,16 @@ export default function InboxClient({ rows }) {
           <span>Other mail</span>
         </button>
       </div>
-      <p className="lede" style={{ marginTop: -12 }}>
-        Inbox {inbox.length} = {s.compare_ok} comparison OK + {s.mismatch} mismatch + {s.pending}{" "}
-        pending + {s.other} other. Click a tile to filter. Done comparison-OK mail is on{" "}
-        <Link href="/reviewed">Reviewed</Link>.
-        {"  "}
+      <div className="toolbar">
+        <p className="lede" style={{ margin: 0 }}>
+          Inbox {inbox.length} = {s.compare_ok} comparison OK + {s.mismatch} mismatch + {s.pending}{" "}
+          pending + {s.other} other. Click a tile to filter. Done comparison-OK mail is on{" "}
+          <Link href="/reviewed">Reviewed</Link>.
+        </p>
         <button className="btn ghost" type="button" onClick={resetClerk}>
-          Restore original (undo my edits)
+          Restore original
         </button>
-      </p>
+      </div>
       <div className="filters">
         <input
           className="search"
@@ -144,7 +145,7 @@ export default function InboxClient({ rows }) {
           </select>
         </label>
       </div>
-      <p style={{ fontSize: 13, color: "#5c6b74", margin: "0 0 10px" }}>
+      <p className="count">
         Showing {filtered.length}
         {cat === "BL_COMPARISON" && status === "OK" ? " comparison OK" : ""}
         {" · "}

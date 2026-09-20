@@ -37,7 +37,7 @@ export default function ReviewClient({ queue }) {
 
   return (
     <>
-      <p style={{ fontSize: 14 }}>
+      <p className="count">
         {open.length} waiting · {closed.length} handled in this browser
       </p>
       <table className="grid">
@@ -60,7 +60,7 @@ export default function ReviewClient({ queue }) {
                 </td>
                 <td>
                   <span className="badge hold">{r.review_reason || displayStatus(r.status)}</span>
-                  <div style={{ color: "#5c6b74", fontSize: 12, marginTop: 4 }}>
+                  <div className="sub">
                     {REASON_COPY[r.review_reason] || "Needs a person"}
                   </div>
                 </td>

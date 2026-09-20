@@ -47,7 +47,7 @@ export default function RemindersClient({ seed }) {
         One row per email address that produced a mismatch. Use it to remind the same person instead
         of hunting through Inbox.
       </p>
-      <p style={{ fontSize: 14 }}>
+      <p className="count">
         {people.length} senders · {visible.length} mismatch cases
         {clerkCount ? (
           <>
@@ -83,7 +83,7 @@ export default function RemindersClient({ seed }) {
                 <td>
                   <Link href={"/mail/" + latest.email_id}>{latest.email_id}</Link>
                   {latest.by_clerk ? <span className="badge hold"> clerk</span> : null}
-                  <div style={{ color: "#5c6b74", fontSize: 12 }}>{latest.subject}</div>
+                  <div className="sub">{latest.subject}</div>
                 </td>
                 <td>{(latest.defect_fields || []).join(", ") || "—"}</td>
                 <td>

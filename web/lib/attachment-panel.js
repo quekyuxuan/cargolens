@@ -21,7 +21,7 @@ export default function AttachmentPanel({ rec }) {
 
   return (
     <div>
-      <h2 style={{ fontFamily: "Georgia, serif", fontSize: 22 }}>Attachments</h2>
+      <h2>Attachments</h2>
       {items.map((f) => (
         <AttachmentCard key={f.path || f.name} file={f} />
       ))}
@@ -55,7 +55,7 @@ function AttachmentCard({ file }) {
   }
 
   return (
-    <div className="note" style={{ background: "#fffdf8" }}>
+    <div className="note">
       <p style={{ margin: "0 0 8px" }}>
         <strong>{file.name}</strong>
         {" · "}
@@ -89,7 +89,7 @@ function AttachmentCard({ file }) {
           </pre>
         ) : null
       ) : (
-        <p style={{ margin: 0, fontSize: 13, color: "#5c6b74" }}>
+        <p className="sub" style={{ margin: 0 }}>
           No text layer: scan-only or corrupted. Rules cannot read it — use Retry with Gemini vision
           on the review page.
         </p>

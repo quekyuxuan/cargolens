@@ -291,7 +291,7 @@ export default function OutlookPage() {
         </table>
       ) : null}
 
-      <h2 style={{ fontFamily: "Georgia, serif", fontSize: 22 }}>No Azure yet — drop files</h2>
+      <h2>No Azure yet — drop files</h2>
       <p className="lede">
         Creates the same kind of live case. Analyse it on the review page, then confirm.
       </p>

@@ -88,10 +88,8 @@ export default function MailView({ rec: initial, id }) {
 
       {ov?.note ? <div className="note">Clerk note: {ov.note}</div> : null}
 
-      <h2 style={{ fontFamily: "Georgia, serif", fontSize: 22 }}>Original message</h2>
-      <p className="lede" style={{ whiteSpace: "pre-wrap", maxWidth: "none" }}>
-        {rec.body || "(empty body)"}
-      </p>
+      <h2>Original message</h2>
+      <p className="body-text">{rec.body || "(empty body)"}</p>
 
       <AttachmentPanel rec={rec} />
 
@@ -173,7 +171,7 @@ export default function MailView({ rec: initial, id }) {
               <tr key={row.field} className={row.match === false ? "hit" : ""}>
                 <td className="fld">
                   {FIELD_LABELS[row.field] || row.field}
-                  <div style={{ fontWeight: 400, color: "#5c6b74", fontSize: 12, marginTop: 4 }}>
+                  <div className="sub" style={{ fontWeight: 400 }}>
                     {row.match === false ? "Mismatch" : row.match === true ? "Match" : "Not compared"}
                   </div>
                 </td>
@@ -190,7 +188,7 @@ export default function MailView({ rec: initial, id }) {
       )}
 
       {rec.category === "BL_COMPARISON" && rec.status === "OK" ? (
-        <div className="note" style={{ marginTop: 24 }}>
+        <div className="note actions">
           {rec.reviewed ? (
             <>
               This mail is on <Link href="/reviewed">Reviewed</Link> and hidden from Inbox.
