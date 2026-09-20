@@ -92,7 +92,7 @@ export default function CaseActions({ rec }) {
         <Link href={"/mail/" + rec.email_id}>View comparison sheet →</Link>
       </p>
 
-      <h2 style={{ fontFamily: "IBM Plex Serif, Georgia, serif", fontSize: 22 }}>Actions</h2>
+      <h2 style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 22 }}>Actions</h2>
       {state?.closed ? (
         <p>
           Last action: <span className="badge ok">{state.action}</span>

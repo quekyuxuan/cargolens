@@ -14,7 +14,9 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
-  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  font-family: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  font-kerning: normal;
+  word-spacing: normal;
   background: var(--paper);
   color: var(--ink);
   min-height: 100vh;
@@ -35,7 +37,7 @@ a:hover { text-decoration: underline; }
   margin-bottom: 28px;
 }
 .brand {
-  font-family: "IBM Plex Serif", Georgia, serif;
+  font-family: Georgia, "Times New Roman", serif;
   font-size: 22px;
   letter-spacing: -0.02em;
 }
@@ -44,7 +46,7 @@ a:hover { text-decoration: underline; }
 .nav-links a:hover, .nav-links a.active { color: var(--ink); text-decoration: none; }
 
 .kicker { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--sea); margin: 0 0 8px; }
-h1 { font-family: "IBM Plex Serif", Georgia, serif; font-weight: 600; font-size: 40px; margin: 0 0 10px; line-height: 1.15; }
+h1 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; font-size: 40px; margin: 0 0 10px; line-height: 1.15; }
 .lede { color: var(--muted); max-width: 58ch; line-height: 1.55; margin: 0 0 28px; }
 
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
@@ -53,7 +55,7 @@ h1 { font-family: "IBM Plex Serif", Georgia, serif; font-weight: 600; font-size:
   border: 1px solid var(--line);
   padding: 14px 16px;
 }
-.stat b { display: block; font-family: "IBM Plex Serif", Georgia, serif; font-size: 28px; }
+.stat b { display: block; font-family: Georgia, "Times New Roman", serif; font-size: 28px; }
 .stat span { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
 
 .demo-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 32px; }
@@ -65,7 +67,7 @@ h1 { font-family: "IBM Plex Serif", Georgia, serif; font-weight: 600; font-size:
   color: inherit;
 }
 .demo-card:hover { border-color: var(--ink); text-decoration: none; }
-.demo-card strong { display: block; font-family: "IBM Plex Serif", Georgia, serif; margin-bottom: 6px; }
+.demo-card strong { display: block; font-family: Georgia, "Times New Roman", serif; margin-bottom: 6px; }
 .demo-card p { margin: 0; font-size: 13px; color: var(--muted); }
 
 .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
