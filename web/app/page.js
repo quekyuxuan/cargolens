@@ -6,7 +6,7 @@ export default function Home() {
   const rows = slimList(results);
   return (
     <main>
-      <p className="kicker">Averis × Monash · shipping documents</p>
+      <p className="kicker">Averis × Monash Hackathon 2026</p>
       <h1>Inbox to discrepancy report</h1>
       <p className="lede">
         Every message gets classified. Comparison requests have their shipping instruction and bill
