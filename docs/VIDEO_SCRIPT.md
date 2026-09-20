@@ -4,8 +4,11 @@ One mark is deducted per 30 seconds over. Record locally (`npm run dev`) so orig
 open; mention that the public deployment shows extracted text instead because the dataset is the
 organizer's.
 
-Before recording: `cd web && npm run dev`, open `http://localhost:3000`, press **Restore original
-(undo my edits)** so the counts read 154 / 46 / 20 / 300.
+Before recording: `cd web && npm run dev`, open `http://localhost:3000`, press **Restore original**
+(top right of the filter row) so the counts read 154 / 46 / 20 / 300.
+
+Lists are paginated — 20 per page on Inbox, 10 on Pending Review. Every email the script names sits
+on page 1 of its filter, so you never have to page during the take.
 
 ---
 
@@ -89,7 +92,10 @@ Open **Reminders**.
 
 ## 4:05–4:40 · Impact and close
 
-Open **Benchmark**.
+On screen: the scorer result — either the terminal right after
+`python run.py --data http://localhost:8080 --submit`, or the results section of `docs/SLIDES.md`.
+There is no Benchmark page in the app any more; the score belongs in the deck, not in the tool the
+clerk uses every day.
 
 > "Scored through the organizer's own Docker endpoint: classification macro-F1 1.0, defect F1 1.0,
 > 46 of 46 end-to-end, and escalation F1 1.0 on the twenty cases that must go to review. Final score

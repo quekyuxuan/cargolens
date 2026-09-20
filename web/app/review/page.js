@@ -8,7 +8,7 @@ export default function ReviewPage() {
     <main>
       <p className="kicker">Human in the loop</p>
       <h1>Review queue</h1>
-      <p className="lede">
+      <p className="lede wide">
         Cases that stay Pending: wrong document type, missing file, unreadable scan, or a blank
         required value. The engine may extract a preview, but Comparison OK / MISMATCH only after a
         clerk confirms a valid SI + bill of lading pair.

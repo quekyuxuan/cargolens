@@ -5,12 +5,11 @@ import { usePathname } from "next/navigation";
 
 const ITEMS = [
   { href: "/", label: "Inbox", icon: "inbox", also: ["/mail"] },
-  { href: "/review", label: "Review", icon: "flag" },
+  { href: "/review", label: "Pending Review", icon: "flag" },
   { href: "/reviewed", label: "Reviewed", icon: "check" },
   { href: "/reminders", label: "Reminders", icon: "bell" },
   { href: "/incoming", label: "New mail", icon: "mail" },
   { href: "/outlook", label: "Outlook", icon: "plug" },
-  { href: "/benchmark", label: "Benchmark", icon: "chart" },
 ];
 
 const PATHS = {

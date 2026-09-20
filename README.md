@@ -65,12 +65,11 @@ attachments locally.
 | Page | What it is for |
 | --- | --- |
 | Inbox | All 520 emails. Tiles filter; counts never overlap |
-| Reviewed | Comparison-OK mail a clerk marked Done, plus export/import of decisions |
-| Review | The twenty Pending cases, with the action that fits each reason |
+| Reviewed | Comparison-OK mail a clerk marked Done, searchable, restorable to Inbox |
+| Pending Review | The twenty Pending cases, filtered by why they stopped |
 | Reminders | One row per sender who caused a mismatch, ready to chase |
 | New mail | How any later message enters the same pipeline |
 | Outlook | Microsoft Graph import, or drop two files without Azure |
-| Benchmark | The official self-evaluation |
 
 ## Data handling
 

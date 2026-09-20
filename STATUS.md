@@ -129,14 +129,16 @@ bundle / Outlook Graph / clerk upload
 
 | Route | Purpose |
 | --- | --- |
-| `/` | Inbox. Four clickable filter tiles, search, type/status selects, Restore original |
+| `/` | Inbox. Four filter tiles, search, type/status selects, Restore original, 20 rows a page |
 | `/mail/[id]` | Body, attachments with extracted text, comparison sheet, clerk editor, Done button |
-| `/review` + `/review/[id]` | The 20 Pending cases, action set per reason, upload → Analyse → Confirm |
-| `/reviewed` | Done archive, export/import of clerk decisions |
-| `/reminders` | One row per mismatch sender, mailto reminder, clerk-flagged filter |
+| `/review` + `/review/[id]` | The 20 Pending cases. Search, "Why it stopped" filter, 10 a page, upload → Analyse → Confirm |
+| `/reviewed` | Done archive. Search, 10 a page, Restore to inbox |
+| `/reminders` | One row per mismatch sender. Search, 10 a page, mailto reminder, clerk-flagged filter |
 | `/incoming` | How any later message enters the same pipeline |
 | `/outlook` + `/outlook/callback` | Graph PKCE import, or drop two files without Azure |
-| `/benchmark` | Official self-evaluation, states why Gemini is off during scoring |
+
+Sidebar order is Inbox · Pending Review · Reviewed · Reminders · New mail · Outlook. There is
+deliberately **no Benchmark page** — see "Deleted on purpose" below.
 
 ### Web libs
 
@@ -148,11 +150,18 @@ compare), `slim.js` (list-page projection), `overrides.js` (clerk localStorage +
 ## Things that surprise people
 
 - **Clerk decisions live in `localStorage`**, because the Vercel disk is read-only. Keys:
-  `cargolens-overrides`, `cargolens-live-mail`. Inbox has a **Restore original** button and
-  `/reviewed` has export/import. So the inbox counts can differ from `results.json` on a browser that
-  has edits — that is correct behaviour, not a bug.
+  `cargolens-overrides`, `cargolens-live-mail`. Each visitor's edits persist in their own browser and
+  survive a reload; they do not travel to another device or another judge. Inbox has a **Restore
+  original** button to get back to 154 / 46 / 20 / 300. So the inbox counts can differ from
+  `results.json` on a browser that has edits — that is correct behaviour, not a bug.
+  `exportClerkState` / `importClerkState` still exist in `lib/overrides.js` but nothing calls them
+  since the handover panel was removed; they are the hook if a shared store is ever added.
 - **List pages get a slim projection** (`slim.js`). Sending full records made the inbox HTML 1.1 MB;
-  it is now 258 KB. Detail pages still receive the full record.
+  it is now 258 KB. Detail pages still receive the full record. `/reviewed` was missing this and
+  shipped the whole of `results.json` at 988 KB; it passes `slimList` now and serves 134 KB.
+- **All four list pages paginate** through `app/pager.js` (`usePaged` + `<Pager>`): 20 a page on
+  Inbox, 10 elsewhere. The page box is typed into and clamps to `[1, pages]`, the control hides
+  itself at a single page, and changing a filter resets to page 1.
 - **Originals do not open on Vercel** by design: the attachments are the organizer's and the repo is
   public. `/api/files` 404s with a hint and the UI shows extracted text instead. Locally it reads
   `~/Downloads/sdoc-hackathon-bundle`, overridable with `SDOC_DATA`.
@@ -163,6 +172,21 @@ compare), `slim.js` (list-page projection), `overrides.js` (clerk localStorage +
   the last line for `master -> master`; that means it worked.
 - The browser screenshot tool crops to ~884 px wide regardless of viewport. Verify layout by measuring
   elements with CDP instead of trusting the image.
+
+## Deleted on purpose — do not "helpfully" put these back
+
+Trimmed on 20 Sep so the judges see a clerk's tool, not a scoreboard:
+
+- **The `/benchmark` page.** The 1.0 belongs in the deck and the video, not in the product. The score
+  is still produced and still committed to `web/data/scoreboard.json` by `run.py --submit`; nothing
+  renders it. `docs/VIDEO_SCRIPT.md` now shows the scorer terminal for the impact section instead.
+- **The topbar block** — "Documentation desk", the "520 emails triaged ·" subtitle, and the "Official
+  benchmark 1.00" pill. The header is only the brand now, so `layout.js` needs neither
+  `results.json` nor `scoreboard.json`.
+- **The Inbox counts sentence.** The four tiles already carry those numbers; the sentence repeated
+  them and went stale the moment a clerk edited anything.
+- **The "Decisions live on this device" panel on `/reviewed`**, with Export/Import. See the
+  `localStorage` note above for what this means for judges.
 
 ## Design system (restyled 20 Sep)
 
@@ -179,6 +203,11 @@ Class names were kept, so nearly all styling lives in `web/app/globals.css`.
 - Radii 26 / 20 / 14 px, pills 999 px. Shell is `rgba(211,211,217,.5)` with `backdrop-filter`.
 - `web/app/nav.js` holds the sidebar, inline SVG icons, active-route logic, and the `Brand` export
   used by the header.
+- `web/app/pager.js` is the only pagination. Arrows are 32 px circles, the page box is a `999px`
+  pill on `#f4f5fa`, and the range ("1–20 of 520 emails") sits on the left in `--muted`. Reuse it
+  rather than writing a second pager.
+- `.lede` is capped at `74ch` for reading. Add `.lede.wide` where the sentence should line up with
+  the table edge — `/review`, `/reviewed`, `/reminders` all do.
 
 ## Submission material — already written and pushed
 

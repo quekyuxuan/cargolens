@@ -1,7 +1,5 @@
 import "./globals.css";
 import { Plus_Jakarta_Sans } from "next/font/google";
-import board from "../data/scoreboard.json";
-import results from "../data/results.json";
 import Nav, { Brand } from "./nav";
 
 const sans = Plus_Jakarta_Sans({
@@ -16,9 +14,6 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
-  const total = Array.isArray(results) ? results.length : 0;
-  const score = Math.round((board.final_score || 0) * 100) / 100;
-
   return (
     <html lang="en" className={sans.variable}>
       <body>
@@ -26,14 +21,6 @@ export default function RootLayout({ children }) {
           <div className="shell">
             <header className="topbar">
               <Brand />
-              <div>
-                <h1>Documentation desk</h1>
-                <p>{total} emails triaged · shipping instruction checked against the bill of lading</p>
-              </div>
-              <div className="score-pill">
-                <span>Official benchmark</span>
-                <b>{score.toFixed(2)}</b>
-              </div>
             </header>
             <div className="layout">
               <Nav />

@@ -4,10 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { loadLiveMail } from "../../lib/live-mail";
 import { loadOverrides, mergeRecord } from "../../lib/overrides";
+import Pager, { usePaged } from "../pager";
+
+const PER_PAGE = 10;
 
 export default function RemindersClient({ seed }) {
   const [rows, setRows] = useState(() => (seed || []).filter((r) => r.status === "MISMATCH"));
   const [clerkOnly, setClerkOnly] = useState(false);
+  const [q, setQ] = useState("");
 
   useEffect(() => {
     const ovs = loadOverrides();
@@ -37,18 +41,47 @@ export default function RemindersClient({ seed }) {
     return Object.values(map).sort((a, b) => b.count - a.count);
   }, [visible]);
 
+  // Keep a sender's full case list intact; a subject hit still shows the whole row.
+  const matched = useMemo(() => {
+    const query = q.trim().toLowerCase();
+    if (!query) return people;
+    return people.filter(
+      (p) =>
+        p.email.toLowerCase().includes(query) ||
+        p.cases.some(
+          (c) =>
+            (c.email_id || "").toLowerCase().includes(query) ||
+            (c.subject || "").toLowerCase().includes(query)
+        )
+    );
+  }, [people, q]);
+
+  const { page, pages, setPage, slice } = usePaged(matched, PER_PAGE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [q, clerkOnly, setPage]);
+
   const clerkCount = rows.filter((r) => r.by_clerk).length;
 
   return (
     <main>
       <p className="kicker">Follow up</p>
       <h1>Mismatch senders</h1>
-      <p className="lede">
+      <p className="lede wide">
         One row per email address that produced a mismatch. Use it to remind the same person instead
         of hunting through Inbox.
       </p>
+      <div className="filters">
+        <input
+          className="search"
+          placeholder="Search sender, subject, email id"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+      </div>
       <p className="count">
-        {people.length} senders · {visible.length} mismatch cases
+        {matched.length} senders · {visible.length} mismatch cases
         {clerkCount ? (
           <>
             {" · "}
@@ -74,7 +107,7 @@ export default function RemindersClient({ seed }) {
           </tr>
         </thead>
         <tbody>
-          {people.map((p) => {
+          {slice.map((p) => {
             const latest = p.cases[p.cases.length - 1];
             return (
               <tr key={p.email}>
@@ -98,8 +131,21 @@ export default function RemindersClient({ seed }) {
               </tr>
             );
           })}
+          {slice.length === 0 ? (
+            <tr>
+              <td colSpan={5}>No sender matches this search.</td>
+            </tr>
+          ) : null}
         </tbody>
       </table>
+      <Pager
+        page={page}
+        pages={pages}
+        onPage={setPage}
+        total={matched.length}
+        perPage={PER_PAGE}
+        noun="senders"
+      />
     </main>
   );
 }

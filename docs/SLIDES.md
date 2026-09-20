@@ -59,7 +59,7 @@ mutually exclusive and add up to 520.
                           Gemini 3.6 Flash (vision)
                           reads fields · never judges
 
-  results.json ──▶ Next.js on Vercel ──▶ Inbox · Review · Reminders · Reviewed · Benchmark
+  results.json ──▶ Next.js on Vercel ──▶ Inbox · Pending Review · Reviewed · Reminders · Outlook
                          │
                          ├─ /api/vision  server-side Gemini call for clerk retries
                          └─ /api/files   serves an original only if the ZIP is on that host

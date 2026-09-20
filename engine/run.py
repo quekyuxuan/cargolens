@@ -58,7 +58,7 @@ def main():
         board = scorer.submit(submission)
         board_json = json.dumps(board, indent=2)
         (out / "scoreboard.json").write_text(board_json, encoding="utf-8")
-        # Keep the Benchmark page honest: it must never show a score we no longer produce.
+        # Kept as the record of the last official run; the site no longer renders it.
         (web_data / "scoreboard.json").write_text(board_json, encoding="utf-8")
         print("final_score", board.get("final_score"))
 

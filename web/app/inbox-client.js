@@ -5,9 +5,11 @@ import Link from "next/link";
 import { CAT_LABELS, displayStatus, statusClass, summarize } from "../lib/labels";
 import { loadLiveMail } from "../lib/live-mail";
 import { clearClerkLocal, loadOverrides, mergeRecord } from "../lib/overrides";
+import Pager, { usePaged } from "./pager";
 
 const CATS = ["ALL", "BL_COMPARISON", "SI_REQUEST", "INVOICE_QUERY", "GENERAL", "SPAM"];
 const STATUSES = ["ALL", "OK", "MISMATCH", "NEEDS_REVIEW"];
+const PER_PAGE = 20;
 
 export default function InboxClient({ rows }) {
   const [cat, setCat] = useState("ALL");
@@ -48,6 +50,13 @@ export default function InboxClient({ rows }) {
       );
     });
   }, [inbox, cat, status, q]);
+
+  const { page, pages, setPage, slice } = usePaged(filtered, PER_PAGE);
+
+  // A new filter should start at the top of its own result set, not mid-way.
+  useEffect(() => {
+    setPage(1);
+  }, [cat, status, q, setPage]);
 
   function clickStat(nextCat, nextStatus) {
     setCat(nextCat);
@@ -103,16 +112,6 @@ export default function InboxClient({ rows }) {
           <span>Other mail</span>
         </button>
       </div>
-      <div className="toolbar">
-        <p className="lede" style={{ margin: 0 }}>
-          Inbox {inbox.length} = {s.compare_ok} comparison OK + {s.mismatch} mismatch + {s.pending}{" "}
-          pending + {s.other} other. Click a tile to filter. Done comparison-OK mail is on{" "}
-          <Link href="/reviewed">Reviewed</Link>.
-        </p>
-        <button className="btn ghost" type="button" onClick={resetClerk}>
-          Restore original
-        </button>
-      </div>
       <div className="filters">
         <input
           className="search"
@@ -144,6 +143,9 @@ export default function InboxClient({ rows }) {
             ))}
           </select>
         </label>
+        <button className="btn ghost push-right" type="button" onClick={resetClerk}>
+          Restore original
+        </button>
       </div>
       <p className="count">
         Showing {filtered.length}
@@ -163,7 +165,7 @@ export default function InboxClient({ rows }) {
           </tr>
         </thead>
         <tbody>
-          {filtered.map((r) => (
+          {slice.map((r) => (
             <tr key={r.email_id}>
               <td>
                 <Link href={"/mail/" + r.email_id}>{r.email_id}</Link>
@@ -178,8 +180,21 @@ export default function InboxClient({ rows }) {
               <td>{(r.defect_fields || []).join(", ") || "—"}</td>
             </tr>
           ))}
+          {slice.length === 0 ? (
+            <tr>
+              <td colSpan={5}>No mail matches this filter.</td>
+            </tr>
+          ) : null}
         </tbody>
       </table>
+      <Pager
+        page={page}
+        pages={pages}
+        onPage={setPage}
+        total={filtered.length}
+        perPage={PER_PAGE}
+        noun="emails"
+      />
     </>
   );
 }
