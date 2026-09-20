@@ -153,6 +153,7 @@ export default function InboxClient({ rows }) {
         {" · "}
         {inbox.length} still in inbox
         {s.reviewed ? " · " + s.reviewed + " on Reviewed" : ""}
+        {" · Your changes are saved in this browser — Restore original undoes them"}
       </p>
       <table className="grid">
         <thead>

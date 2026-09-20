@@ -156,6 +156,10 @@ compare), `slim.js` (list-page projection), `overrides.js` (clerk localStorage +
   `results.json` on a browser that has edits — that is correct behaviour, not a bug.
   `exportClerkState` / `importClerkState` still exist in `lib/overrides.js` but nothing calls them
   since the handover panel was removed; they are the hook if a shared store is ever added.
+  **This is a deliberate decision, not a gap.** A shared server-side store was considered and
+  rejected: if every visitor wrote to one table, one judge pressing Done would change what the next
+  judge sees. Per-browser storage gives each of them an isolated sandbox. The Inbox count line says
+  so in one sentence, and **Restore original** resets to 154 / 46 / 20 / 300.
 - **List pages get a slim projection** (`slim.js`). Sending full records made the inbox HTML 1.1 MB;
   it is now 258 KB. Detail pages still receive the full record. `/reviewed` was missing this and
   shipped the whole of `results.json` at 988 KB; it passes `slimList` now and serves 134 KB.
