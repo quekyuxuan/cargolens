@@ -9,8 +9,8 @@ export default function Home() {
       <p className="kicker">Averis × Monash · shipping documents</p>
       <h1>Inbox to discrepancy report</h1>
       <p className="lede">
-        Every message is classified. Only comparison requests (SI vs bill of lading) are checked
-        field-by-field. The four counts match the filter — they are not overlapping.
+        Every message gets classified. Comparison requests have their shipping instruction and bill
+        of lading read and checked field by field, so you only open the ones that need you.
       </p>
       <InboxClient rows={rows} />
     </main>

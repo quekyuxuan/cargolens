@@ -10,9 +10,9 @@ export default function BenchmarkPage() {
       <p className="kicker">Official self-evaluation</p>
       <h1>Benchmark</h1>
       <p className="lede">
-        Scored against the private reference set through the organizer Docker endpoint. The engine
-        never loads the answer key. Classification is rule-first and comparison is deterministic
-        code, so this number does not move when a model changes.
+        Scored against the organizer's private reference set through their Docker endpoint. The
+        engine never loads the answer key. Rules classify and code compares, so this number does not
+        move when a model changes.
       </p>
       <div className="note">
         <strong>Gemini is off for this score.</strong> Five emails carry scan-only or corrupted
@@ -60,7 +60,7 @@ export default function BenchmarkPage() {
             <td>
               {pct(board.stage3.defect_precision)} / {pct(board.stage3.defect_recall)}
             </td>
-            <td>Comparable SI/BL pairs only; no false alarms in this run</td>
+            <td>Comparable SI/BL pairs only. No false alarms in this run</td>
           </tr>
           <tr>
             <td>Field-level F1</td>

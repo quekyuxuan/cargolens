@@ -4,7 +4,8 @@
 
 - Repo: `C:\Users\yu xuan\cargolens` · GitHub `quekyuxuan/cargolens` (public)
 - Live: https://cargolens-peach.vercel.app/ (Vercel auto-deploys on push to `master`, root dir `web`)
-- Last commit: `3cfd1a7`, pushed. Working tree clean apart from ignored files.
+- Everything is committed and pushed to `master`; run `git log -1` for where you are. If the working
+  tree is dirty, that is new work, not leftovers.
 - Deadline: Google Form https://forms.gle/nnam5eXrf5cjXdf3 closes **22 Sep 2026 12:00 p.m.**
 
 ## What this is
@@ -60,7 +61,28 @@ npm run build   # 552 pages, run this before any push
 5. APRIL and APRIL MIDDLE EAST are **different shippers**.
 6. Never let an integration failure share an error path with a data problem (see both defects below).
 
-## Two defects found and fixed — do not regress these
+## Three defects found and fixed — do not regress these
+
+**PowerShell wrote UTF-16 files and git read them as binary.** `.gitignore`, `README.md`, and
+`engine/requirements.txt` were UTF-16LE with no BOM. Consequences: the **entire `.gitignore` was
+inert**, because git matches patterns as bytes and every pattern carried interleaved NULs — so
+`engine/.env`, `ground_truth.json`, and `sdoc-hackathon-*/` were *not* protected in a public repo;
+the README rendered as spaced-out garbage on GitHub, which is the first thing a judge sees; and
+`pip install -r requirements.txt` could not parse the file. Nothing secret had actually been
+committed — verified with `git log --all --name-only`, only the two `.env.example` files. All three
+are UTF-8 with LF now.
+
+**Write repo files as UTF-8, never with bare `>` or `Out-File` in PowerShell 5.1**, which defaults to
+UTF-16LE. `engine/_fix_enc.py` (untracked) converts `engine/*.py` only; it does not cover the repo
+root. To check for a regression:
+
+```powershell
+Get-ChildItem -Recurse -File -Include *.md,*.py,*.js,*.json,*.css,*.txt |
+  Where-Object { $_.FullName -notmatch "node_modules|\.next|__pycache__" } |
+  ForEach-Object { $b=[IO.File]::ReadAllBytes($_.FullName); if ($b.Length -gt 1 -and $b[1] -eq 0) { "UTF16: $($_.FullName)" } }
+```
+
+`git diff` calls a UTF-16 file `Bin ... bytes` instead of showing line changes. That is the tell.
 
 **DOCX via python-docx silently cost 0.08 of the score.** `python-docx` needs an lxml DLL that
 Windows Application Control blocks on this machine. Eight pairs fell to `unreadable` and the real
@@ -177,5 +199,6 @@ Class names were kept, so nearly all styling lives in `web/app/globals.css`.
 4. **Eligibility — check this first.** The rules say *"Teams of 2 to 5 members only."* If registered
    solo, contact Ming Dong (+60 12-368 8837), the approval contact named in the rules. Code cannot fix
    this one.
-5. Optional polish: the homepage subtitle and some Benchmark wording still carry the older, more
-   formal tone from the previous newspaper-style design.
+5. ~~Optional polish: homepage subtitle and Benchmark wording.~~ Done. The homepage lede no longer
+   repeats the counts sentence that `inbox-client.js` already prints, and the Benchmark lede now uses
+   the same "rules classify, code compares" phrasing as the README.
