@@ -18,14 +18,12 @@ export default function RootLayout({ children }) {
     <html lang="en" className={sans.variable}>
       <body>
         <div className="page">
-          <div className="shell">
-            <header className="topbar">
-              <Brand />
-            </header>
-            <div className="layout">
-              <Nav />
-              {children}
-            </div>
+          <header className="topbar">
+            <Brand />
+          </header>
+          <div className="layout">
+            <Nav />
+            {children}
           </div>
         </div>
       </body>

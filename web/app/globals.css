@@ -49,17 +49,10 @@ a:hover { text-decoration: underline; }
 
 /* ---------- shell ---------- */
 
-.page { padding: 26px 24px 40px; }
-
-.shell {
-  max-width: 1260px;
-  margin: 0 auto;
-  padding: 16px;
-  border-radius: var(--r-lg);
-  background: rgba(211, 211, 217, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  box-shadow: 0 26px 64px -30px rgba(20, 24, 36, 0.4);
-  backdrop-filter: blur(16px);
+/* One layer only: sidebar and content card sit on the page background. */
+.page {
+  width: 100%;
+  padding: 20px 28px 36px;
 }
 
 .topbar {
@@ -142,9 +135,7 @@ main {
 }
 h1 { font-size: 24px; font-weight: 650; letter-spacing: -0.022em; margin: 0 0 8px; line-height: 1.25; }
 h2 { font-size: 16px; font-weight: 650; letter-spacing: -0.015em; margin: 24px 0 10px; }
-.lede { color: var(--ink-2); max-width: 74ch; font-size: 14px; line-height: 1.6; margin: 0 0 20px; }
-/* Spans the full table width instead of the reading measure. */
-.lede.wide { max-width: none; }
+.lede { color: var(--ink-2); font-size: 14px; line-height: 1.6; margin: 0 0 20px; }
 
 /* ---------- filter tiles ---------- */
 
@@ -460,6 +451,5 @@ code {
 
 @media (max-width: 620px) {
   .page { padding: 12px 10px 28px; }
-  .shell { padding: 12px; }
   main { padding: 18px 16px 22px; }
 }

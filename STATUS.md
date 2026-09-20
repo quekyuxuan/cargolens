@@ -194,7 +194,8 @@ Trimmed on 20 Sep so the judges see a clerk's tool, not a scoreboard:
 
 ## Design system (restyled 20 Sep)
 
-Reference style: soft gradient page, translucent grey frame, white rounded cards, pill sidebar.
+Reference style: soft gradient page, white rounded cards, pill sidebar. There is no outer grey
+frame — one layer only. `.lede` spans the content card; do not cap it at `74ch`.
 Class names were kept, so nearly all styling lives in `web/app/globals.css`.
 
 - Font **Plus Jakarta Sans** via `next/font/google`, self-hosted at build time, system stack behind
@@ -204,7 +205,7 @@ Class names were kept, so nearly all styling lives in `web/app/globals.css`.
 - Text `#15171c` / `#3f444e` / `#8b909a`. Cards `#fff`, lines `#eeeff2` and `#e2e4e9`, even rows
   `#fbfbfe`.
 - Status pills: OK `#0e8a5a`, MISMATCH `#cf2e33`, Pending `#b0700a`, each on a 12 % tint.
-- Radii 26 / 20 / 14 px, pills 999 px. Shell is `rgba(211,211,217,.5)` with `backdrop-filter`.
+- Radii 20 / 14 px on cards and pills 999 px. No outer shell.
 - `web/app/nav.js` holds the sidebar, inline SVG icons, active-route logic, and the `Brand` export
   used by the header.
 - `web/app/pager.js` is the only pagination. Arrows are 32 px circles, the page box is a `999px`
