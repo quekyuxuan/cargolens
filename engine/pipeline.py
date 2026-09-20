@@ -2,7 +2,7 @@
 from classify import classify_email
 from compare import compare_fields
 from extract_bin import attachment_to_text, extract_attachment
-from extract_txt import looks_like_shipping_doc, planted_missing
+from extract_txt import extract_text_fields, looks_like_shipping_doc, planted_missing
 
 
 def _split_si_bl(paths):
@@ -15,7 +15,36 @@ def _split_si_bl(paths):
     return si, bl
 
 
-def process_email(email, inbox):
+def _apply_compare(record, si_fields, bl_fields):
+    record["si_fields"] = si_fields
+    record["bl_fields"] = bl_fields
+    cmp = compare_fields(si_fields, bl_fields)
+    if cmp["status"] == "NEEDS_REVIEW" and cmp["review_reason"] == "missing_value":
+        rows = []
+        defects = []
+        for row in cmp["rows"]:
+            rows.append(row)
+            if row["match"] is False:
+                defects.append(row["field"])
+        record["rows"] = rows
+        if defects:
+            record["status"] = "MISMATCH"
+            record["has_defect"] = True
+            record["defect_fields"] = defects
+            record["review_reason"] = None
+        else:
+            record["status"] = "OK"
+            record["has_defect"] = False
+            record["defect_fields"] = []
+            record["review_reason"] = None
+        return record
+    record.update(
+        {k: cmp[k] for k in ("status", "review_reason", "has_defect", "defect_fields", "rows")}
+    )
+    return record
+
+
+def process_email(email, inbox, try_vision=False):
     clf = classify_email(email)
     category = clf["category"]
     atts = email.get("attachments") or []
@@ -35,9 +64,16 @@ def process_email(email, inbox):
         "rows": [],
         "notes": [],
         "attachments": atts,
-        "body": body[:800],
+        "body": body,
         "file_kinds": [],
+        "attachment_views": [],
     }
+
+    if atts:
+        record["attachment_views"] = _attachment_views(inbox, atts)
+        record["file_kinds"] = [
+            {"path": v["path"], "kind": v["kind"]} for v in record["attachment_views"]
+        ]
 
     if category != "BL_COMPARISON":
         return record
@@ -66,14 +102,19 @@ def process_email(email, inbox):
         si_text = attachment_to_text(si_path, si_bytes)
         bl_text = attachment_to_text(bl_path, bl_bytes)
     except Exception as exc:
+        record["notes"].append(str(exc))
+        if try_vision:
+            return _vision_compare(record, si_path, si_bytes, bl_path, bl_bytes)
         record["status"] = "NEEDS_REVIEW"
         record["review_reason"] = "unreadable"
-        record["notes"].append(str(exc))
         return record
 
     if not (si_text or "").strip() or not (bl_text or "").strip():
+        if try_vision:
+            return _vision_compare(record, si_path, si_bytes, bl_path, bl_bytes)
         record["status"] = "NEEDS_REVIEW"
         record["review_reason"] = "unreadable"
+        record["notes"].append("No text layer; vision not enabled for official submit.")
         return record
 
     if "will not open" in body.lower() or "garbled" in body.lower():
@@ -90,6 +131,13 @@ def process_email(email, inbox):
     if bl_kind in WRONG or si_kind in WRONG:
         record["status"] = "NEEDS_REVIEW"
         record["review_reason"] = "wrong_doc_type"
+        # Read what we can, but do not auto-compare or mark OK.
+        _, record["si_fields"] = extract_attachment(si_path, si_bytes)
+        _, record["bl_fields"] = extract_attachment(bl_path, bl_bytes)
+        record["notes"].append(
+            "Pending: one file is %s, not a bill of lading. Replace it before compare."
+            % (bl_kind if bl_kind in WRONG else si_kind)
+        )
         return record
 
     if planted_missing(si_text) or planted_missing(bl_text):
@@ -99,38 +147,49 @@ def process_email(email, inbox):
 
     _, si_fields = extract_attachment(si_path, si_bytes)
     _, bl_fields = extract_attachment(bl_path, bl_bytes)
-    record["si_fields"] = si_fields
-    record["bl_fields"] = bl_fields
+    return _apply_compare(record, si_fields, bl_fields)
 
-    cmp = compare_fields(si_fields, bl_fields)
-    # If a field failed to extract, skip it instead of escalating the whole case
-    if cmp["status"] == "NEEDS_REVIEW" and cmp["review_reason"] == "missing_value":
-        rows = []
-        defects = []
-        for row in cmp["rows"]:
-            if row["match"] is None:
-                rows.append(row)
-                continue
-            rows.append(row)
-            if row["match"] is False:
-                defects.append(row["field"])
-        record["rows"] = rows
-        if defects:
-            record["status"] = "MISMATCH"
-            record["has_defect"] = True
-            record["defect_fields"] = defects
-            record["review_reason"] = None
-        else:
-            record["status"] = "OK"
-            record["has_defect"] = False
-            record["defect_fields"] = []
-            record["review_reason"] = None
+
+def _attachment_views(inbox, paths):
+    views = []
+    for p in paths or []:
+        name = p.replace("\\", "/").split("/")[-1]
+        data = inbox.read_bytes(p) or b""
+        text = ""
+        kind = "unknown"
+        fields = {}
+        try:
+            text = attachment_to_text(p, data) or ""
+            kind = looks_like_shipping_doc(text) or "unknown"
+            fields = extract_text_fields(text)
+        except Exception:
+            text = ""
+        views.append(
+            {
+                "path": p,
+                "name": name,
+                "kind": kind,
+                "bytes": len(data),
+                "text": (text or "")[:12000],
+                "fields": fields,
+            }
+        )
+    return views
+
+
+def _vision_compare(record, si_path, si_bytes, bl_path, bl_bytes):
+    from vision import extract_fields_vision
+
+    si_fields, si_err = extract_fields_vision(si_path, si_bytes)
+    bl_fields, bl_err = extract_fields_vision(bl_path, bl_bytes)
+    record["notes"].append("vision SI: %s" % (si_err or "ok"))
+    record["notes"].append("vision BL: %s" % (bl_err or "ok"))
+    if not si_fields or not bl_fields:
+        record["status"] = "NEEDS_REVIEW"
+        record["review_reason"] = "unreadable"
         return record
-
-    record.update(
-        {k: cmp[k] for k in ("status", "review_reason", "has_defect", "defect_fields", "rows")}
-    )
-    return record
+    record["extracted_by"] = "gemini-vision"
+    return _apply_compare(record, si_fields, bl_fields)
 
 
 def to_submission_row(record):

@@ -1,25 +1,39 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { loadOverrides } from "../../lib/overrides";
+import { loadLiveMail } from "../../lib/live-mail";
+import { loadOverrides, mergeRecord } from "../../lib/overrides";
+import { displayStatus } from "../../lib/labels";
 
 const REASON_COPY = {
-  wrong_doc_type: "Wrong file — not an SI/BL pair",
-  missing_attachment: "Attachment missing — ask sender to resend",
-  unreadable: "File cannot be read — retry or request a clean scan",
-  missing_value: "Required field blank — fill or ask the customer",
+  wrong_doc_type: "Pending — wrong type. Extract shown; replace BL then clerk confirms",
+  missing_attachment: "Pending — attachment missing, ask sender to resend",
+  unreadable: "Pending — cannot read; retry Gemini or request a clean scan",
+  missing_value: "Pending — required field blank",
 };
 
 export default function ReviewClient({ queue }) {
   const [done, setDone] = useState({});
+  const [live, setLive] = useState([]);
 
   useEffect(() => {
     setDone(loadOverrides());
+    setLive(loadLiveMail());
   }, []);
 
-  const open = queue.filter((r) => !done[r.email_id]?.closed);
-  const closed = queue.filter((r) => done[r.email_id]?.closed);
+  const all = useMemo(() => {
+    const byId = {};
+    for (const r of queue) byId[r.email_id] = mergeRecord(r, done[r.email_id]);
+    for (const r of live) {
+      const m = mergeRecord(r, done[r.email_id]);
+      if (m.status === "NEEDS_REVIEW" || done[r.email_id]) byId[r.email_id] = m;
+    }
+    return Object.values(byId);
+  }, [queue, live, done]);
+
+  const open = all.filter((r) => r.status === "NEEDS_REVIEW" && !done[r.email_id]?.closed);
+  const closed = all.filter((r) => done[r.email_id]?.closed);
 
   return (
     <>
@@ -37,7 +51,7 @@ export default function ReviewClient({ queue }) {
           </tr>
         </thead>
         <tbody>
-          {queue.map((r) => {
+          {all.map((r) => {
             const state = done[r.email_id];
             return (
               <tr key={r.email_id}>
@@ -45,7 +59,7 @@ export default function ReviewClient({ queue }) {
                   <Link href={"/review/" + r.email_id}>{r.email_id}</Link>
                 </td>
                 <td>
-                  <span className="badge hold">{r.review_reason}</span>
+                  <span className="badge hold">{r.review_reason || displayStatus(r.status)}</span>
                   <div style={{ color: "#5c6b74", fontSize: 12, marginTop: 4 }}>
                     {REASON_COPY[r.review_reason] || "Needs a person"}
                   </div>

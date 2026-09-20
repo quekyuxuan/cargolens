@@ -1,6 +1,7 @@
-import { notFound } from "next/navigation";
 import results from "../../../data/results.json";
 import CaseActions from "./case-actions";
+
+export const dynamicParams = true;
 
 export function generateStaticParams() {
   return (results || [])
@@ -9,7 +10,6 @@ export function generateStaticParams() {
 }
 
 export default function ReviewCasePage({ params }) {
-  const rec = (results || []).find((r) => r.email_id === params.id);
-  if (!rec) notFound();
-  return <CaseActions rec={rec} />;
+  const rec = (results || []).find((r) => r.email_id === params.id) || null;
+  return <CaseActions rec={rec} id={params.id} />;
 }

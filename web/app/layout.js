@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export const metadata = {
   title: "CargoLens",
-  description: "From mixed inbox to SI vs draft BL discrepancy report",
+  description: "From mixed inbox to SI vs bill of lading discrepancy report",
 };
 
 export default function RootLayout({ children }) {
@@ -17,8 +17,11 @@ export default function RootLayout({ children }) {
             </Link>
             <nav className="nav-links">
               <Link href="/">Inbox</Link>
+              <Link href="/reviewed">Reviewed</Link>
               <Link href="/review">Review</Link>
+              <Link href="/reminders">Reminders</Link>
               <Link href="/incoming">New mail</Link>
+              <Link href="/outlook">Outlook</Link>
               <Link href="/benchmark">Benchmark</Link>
             </nav>
           </header>

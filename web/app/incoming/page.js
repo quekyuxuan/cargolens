@@ -1,12 +1,13 @@
+import Link from "next/link";
+
 export default function IncomingPage() {
   return (
     <main>
       <p className="kicker">Live mail, not only the sample pack</p>
       <h1>When a new email arrives</h1>
       <p className="lede">
-        The official ZIP is only the evaluation set. The product path is the same for any later
-        message: ingest → classify → extract → compare → report or review. How the bytes arrive
-        changes; the engine does not.
+        Official ZIP scoring stays on the Python engine. Live mail uses the same seven fields, then
+        writes a browser overlay so Vercel never needs the attachment disk.
       </p>
       <table className="grid">
         <thead>
@@ -18,29 +19,29 @@ export default function IncomingPage() {
         </thead>
         <tbody>
           <tr>
-            <td>Hackathon bundle / Docker</td>
+            <td>Hackathon bundle</td>
             <td>
-              <code>python run.py</code> reads 520 JSON records and writes <code>results.json</code>
+              <code>python run.py --submit</code> (no <code>--vision</code>)
             </td>
-            <td>Working — used for the 1.0 score</td>
+            <td>Official 1.0 — do not OCR the gold unreadable cases</td>
           </tr>
           <tr>
-            <td>Operations inbox (Outlook / Graph)</td>
-            <td>A connector posts each new mail + attachments into the same pipeline</td>
-            <td>Architecture next; not wired this weekend unless we add a Graph app</td>
+            <td>Outlook</td>
+            <td>
+              Microsoft Graph, Mail.Read, PKCE in this browser. Pick a message; attachments become a
+              live case.
+            </td>
+            <td>
+              <Link href="/outlook">Connect Outlook →</Link>
+            </td>
           </tr>
           <tr>
             <td>Manual drop</td>
-            <td>Clerk uploads .eml / PDF / DOCX; worker runs one job</td>
-            <td>Same engine, one-email CLI can be added in an hour</td>
+            <td>Upload SI + BL on Review, or drop a pair on the Outlook page without signing in</td>
+            <td>Works without Azure if you only have files</td>
           </tr>
         </tbody>
       </table>
-      <p className="lede">
-        New mail does not require a new model. Add an adapter in front of <code>process_email()</code>.
-        Classification rules and the seven-field comparer stay put. Unseen layouts go to review
-        instead of a silent wrong answer.
-      </p>
     </main>
   );
 }

@@ -1,6 +1,11 @@
 """Turn PDF / DOCX / XLSX bytes into text, then reuse the text extractor."""
 import io
+import zipfile
+from xml.etree import ElementTree
+
 from extract_txt import extract_text_fields
+
+W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
 
 def attachment_to_text(name, data):
@@ -32,18 +37,40 @@ def _pdf(data):
 
 
 def _docx(data):
-    from docx import Document
+    # Stdlib only: python-docx needs lxml, which Windows Application Control can block.
+    with zipfile.ZipFile(io.BytesIO(data)) as zf:
+        xml = zf.read("word/document.xml")
+    body = ElementTree.fromstring(xml).find(W + "body")
+    if body is None:
+        return ""
 
-    doc = Document(io.BytesIO(data))
-    parts = [p.text for p in doc.paragraphs]
-    for table in doc.tables:
-        for row in table.rows:
-            cells = [c.text.strip() for c in row.cells]
+    parts = [_para_text(p) for p in body.findall(W + "p")]
+    for table in body.findall(W + "tbl"):
+        for row in table.findall(W + "tr"):
+            cells = [_cell_text(tc).strip() for tc in row.findall(W + "tc")]
             if len(cells) >= 2:
                 parts.append(cells[0] + ": " + cells[1])
             else:
                 parts.append(" | ".join(cells))
     return "\n".join(parts)
+
+
+def _para_text(p):
+    out = []
+    for run in p.iter(W + "r"):
+        for node in run:
+            if node.tag == W + "t":
+                out.append(node.text or "")
+            elif node.tag in (W + "br", W + "cr"):
+                # A soft break separates company name from address; keep the line split.
+                out.append("\n")
+            elif node.tag == W + "tab":
+                out.append("\t")
+    return "".join(out)
+
+
+def _cell_text(tc):
+    return "\n".join(_para_text(p) for p in tc.findall(W + "p"))
 
 
 def _xlsx(data):

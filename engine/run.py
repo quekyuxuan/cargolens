@@ -19,6 +19,11 @@ def main():
     p.add_argument("--out", default="out", help="Output folder")
     p.add_argument("--only", nargs="*", help="Optional email_id list")
     p.add_argument("--submit", action="store_true", help="POST to docker scorer")
+    p.add_argument(
+        "--vision",
+        action="store_true",
+        help="Use Gemini on image-only files. Off by default so official score stays 1.0.",
+    )
     args = p.parse_args()
 
     inbox = Inbox(args.data)
@@ -30,7 +35,7 @@ def main():
     results = []
     submission = {}
     for email in emails:
-        rec = process_email(email, inbox)
+        rec = process_email(email, inbox, try_vision=args.vision)
         results.append(rec)
         submission[rec["email_id"]] = to_submission_row(rec)
 

@@ -1,46 +1,43 @@
-# CargoLens — handoff (20 Sep 2026, midday)
+# CargoLens — handoff (20 Sep 2026)
 
-Read this at the start of a new chat. Repo: `C:\Users\yu xuan\cargolens`.
+Repo: `C:\Users\yu xuan\cargolens`. Live: https://cargolens-peach.vercel.app/
 
 ## Product
 
-Averis × Monash Hackathon. Classify inbox mail, compare SI vs draft BL (7 fields), escalate when unsure.
+Classify inbox mail, compare SI vs draft BL (7 fields), escalate when unsure.
 
 Official data (never commit `ground_truth.json`):
 
 - `C:\Users\yu xuan\Downloads\sdoc-hackathon-bundle`
-- Docker scorer: `C:\Users\yu xuan\Downloads\sdoc-hackathon-docker` → `http://localhost:8080`
+- Docker scorer: `http://localhost:8080`
 
 ## Done
 
-- Engine `engine/`: rules classify, txt/pdf/docx/xlsx extract, code compare, 4 review reasons.
-- Score: **final_score 1.0**.
-- UI `web/`: inbox dropdowns, compare, per-reason review, `/incoming`, `/benchmark`.
-- Gemini key in `engine/.env` (gitignored). Not used to decide mismatches.
-- Vercel config: `web/vercel.json`. **Not deployed yet.**
+- Engine score **1.0** with `python run.py --submit` (**no** `--vision`).
+- Gemini vision opt-in: `run.py --vision` and Review → upload SI/BL → Retry.
+- Clerk write-back: mail page edits + overlay in localStorage (Vercel disk is read-only).
+- Outlook: `/outlook` Graph PKCE + manual file drop → live cases in Inbox/Review.
+- GitHub `quekyuxuan/cargolens`.
 
 ## Run
 
 ```powershell
 cd "C:\Users\yu xuan\cargolens\web"
 npm run dev
-# http://localhost:3000
 
 cd "C:\Users\yu xuan\cargolens\engine"
-& "C:\Users\yu xuan\AppData\Local\Programs\Python\Python314\python.exe" run.py --data http://localhost:8080 --submit
+& "C:\Users\yu xuan\AppData\Local\Programs\Python\Python314\python.exe" run.py --submit
 ```
 
-Demo: `/mail/email_001`, `/mail/email_004`, `/review/email_501`.
+Vision locally: same command plus `--vision` or `--only email_511 --vision`.
 
-## Next (in order)
+Vercel: set `GEMINI_API_KEY` for live Retry. Azure SPA client id is typed in `/outlook`, not committed.
 
-1. **Now:** GitHub + Vercel deploy (`web/` as root). Cloud requirement for judges.
-2. Optional Gemini: explain a mismatch or vision on scans — never set `has_defect`.
-3. Clerk review write-back + real retry (Mon if time).
-4. Slides + 5-min video. Submit before **22 Sep 2026 12:00 p.m.**
+## Next
+
+Slides + ≤5 min video. Form before **22 Sep 2026 12:00 p.m.**
 
 ## Rules
 
-- Code decides match/mismatch. Port = city name, not code alone.
-- `???` / TBA = review, not defect.
-- APRIL vs APRIL MIDDLE EAST = different shippers.
+- LLM never sets `has_defect`. Code compares.
+- Do not OCR official gold unreadable cases on submit.
