@@ -11,9 +11,16 @@ export default function BenchmarkPage() {
       <h1>Benchmark</h1>
       <p className="lede">
         Scored against the private reference set through the organizer Docker endpoint. The engine
-        does not load the answer key. Classification is rule-first; comparison is deterministic
-        code. Gemini is reserved for later explanation, not for deciding mismatches.
+        never loads the answer key. Classification is rule-first and comparison is deterministic
+        code, so this number does not move when a model changes.
       </p>
+      <div className="note">
+        <strong>Gemini is off for this score.</strong> Five emails carry scan-only or corrupted
+        files, and the reference answer for them is human review — reading them with a model would
+        make the engine disagree with the graders. Vision runs only when a clerk asks for it on a
+        live case, it only fills the seven fields, and a person still confirms before anything is
+        filed as OK or MISMATCH.
+      </div>
       <div className="stats">
         <div className="stat">
           <b>{pct(board.final_score)}</b>
@@ -66,6 +73,14 @@ export default function BenchmarkPage() {
               {board.reliability.pred_review} predicted / {board.reliability.gold_review} gold
             </td>
             <td>wrong_doc_type, missing attachment, unreadable, missing value</td>
+          </tr>
+          <tr>
+            <td>Attachment formats read by rules</td>
+            <td>txt, pdf, xlsx, docx</td>
+            <td>
+              DOCX is parsed straight from the OOXML zip, so no native library can be blocked and
+              silently turn a comparable pair into review
+            </td>
           </tr>
         </tbody>
       </table>

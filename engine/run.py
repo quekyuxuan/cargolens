@@ -56,7 +56,10 @@ def main():
     if args.submit:
         scorer = inbox if inbox.is_http else Inbox("http://localhost:8080")
         board = scorer.submit(submission)
-        (out / "scoreboard.json").write_text(json.dumps(board, indent=2), encoding="utf-8")
+        board_json = json.dumps(board, indent=2)
+        (out / "scoreboard.json").write_text(board_json, encoding="utf-8")
+        # Keep the Benchmark page honest: it must never show a score we no longer produce.
+        (web_data / "scoreboard.json").write_text(board_json, encoding="utf-8")
         print("final_score", board.get("final_score"))
 
 

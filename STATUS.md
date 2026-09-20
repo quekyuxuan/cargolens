@@ -1,43 +1,63 @@
-# CargoLens — handoff (20 Sep 2026)
+# CargoLens — handoff (20 Sep 2026, afternoon)
 
-Repo: `C:\Users\yu xuan\cargolens`. Live: https://cargolens-peach.vercel.app/
+Repo: `C:\Users\yu xuan\cargolens` · GitHub `quekyuxuan/cargolens` · Live
+https://cargolens-peach.vercel.app/
 
-## Product
+## Where things stand
 
-Classify inbox mail, compare SI vs draft BL (7 fields), escalate when unsure.
+Official score is **1.0** and verified today against the running Docker scorer.
 
-Official data (never commit `ground_truth.json`):
+Two defects were found and fixed this afternoon:
 
-- `C:\Users\yu xuan\Downloads\sdoc-hackathon-bundle`
-- Docker scorer: `http://localhost:8080`
-
-## Done
-
-- Engine score **1.0** with `python run.py --submit` (**no** `--vision`).
-- Gemini vision opt-in: `run.py --vision` and Review → upload SI/BL → Retry.
-- Clerk write-back: mail page edits + overlay in localStorage (Vercel disk is read-only).
-- Outlook: `/outlook` Graph PKCE + manual file drop → live cases in Inbox/Review.
-- GitHub `quekyuxuan/cargolens`.
+- DOCX went through `python-docx`, whose lxml DLL is blocked by Windows Application Control on this
+  machine. Eight pairs fell to `unreadable` and the score was really **0.9208**. DOCX is now parsed
+  from the OOXML zip with `zipfile` + `ElementTree`, keeping `<w:br/>` as a newline so a company name
+  never glues onto its address. Back to 1.0. `python-docx` removed from requirements.
+- Every Gemini call had been returning 404 because `gemini-2.0-flash` is retired, so vision had never
+  actually run. Engine and API route now use `gemini-3.6-flash`, overridable with `GEMINI_MODEL`.
+  Verified: `email_512` and `email_513` scans are read and compared.
 
 ## Run
 
 ```powershell
+cd "C:\Users\yu xuan\cargolens\engine"
+& "C:\Users\yu xuan\AppData\Local\Programs\Python\Python314\python.exe" run.py --data http://localhost:8080 --submit
+
 cd "C:\Users\yu xuan\cargolens\web"
 npm run dev
-
-cd "C:\Users\yu xuan\cargolens\engine"
-& "C:\Users\yu xuan\AppData\Local\Programs\Python\Python314\python.exe" run.py --submit
 ```
 
-Vision locally: same command plus `--vision` or `--only email_511 --vision`.
+Use the Python 3.14 interpreter above; the msys `python` has no pip.
 
-Vercel: set `GEMINI_API_KEY` for live Retry. Azure SPA client id is typed in `/outlook`, not committed.
+Vision on a scan, never with `--submit`: `run.py --only email_512 --vision`.
 
-## Next
+## Data
 
-Slides + ≤5 min video. Form before **22 Sep 2026 12:00 p.m.**
+- Bundle: `C:\Users\yu xuan\Downloads\sdoc-hackathon-bundle`
+- Scorer: `C:\Users\yu xuan\Downloads\sdoc-hackathon-docker` → http://localhost:8080
+- Never commit `ground_truth.json` or the attachments. The repo is public.
 
-## Rules
+## Site pages
 
-- LLM never sets `has_defect`. Code compares.
-- Do not OCR official gold unreadable cases on submit.
+Inbox (filter tiles, Restore original), Reviewed (Done archive + export/import), Review (per-reason
+actions, upload and Analyse, Confirm), Reminders (mismatch senders), New mail, Outlook (Graph PKCE or
+file drop), Benchmark.
+
+Clerk decisions live in `localStorage` because the deployed disk is read-only. Reviewed has
+export/import so two machines can merge; newest decision per case wins.
+
+## Still open
+
+1. Push and redeploy — local commits are ahead of `origin/master`, so the live site is stale.
+2. Add `GEMINI_API_KEY` in Vercel for the online retry.
+3. Register the Azure SPA app; redirect URI must be under **Single-page application**, permission
+   `Mail.Read`.
+4. Slides, video under five minutes, Google Form. Deadline **22 Sep 2026 12:00 p.m.**
+
+## Rules that must not be broken
+
+- Code decides match/mismatch. The model only reads fields.
+- Do not run `--vision` with `--submit`: the five gold `unreadable` cases must stay in review.
+- Port comparison is by city name, not the UN/LOCODE alone.
+- `???` or TBA is uncertainty, not a defect.
+- APRIL and APRIL MIDDLE EAST are different shippers.
