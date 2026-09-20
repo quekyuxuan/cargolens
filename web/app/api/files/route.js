@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
+import os from "os";
 import path from "path";
 
+// Organizer data is never published with the site; it is read from the local ZIP when present.
 const ROOTS = [
   process.env.SDOC_DATA,
-  "C:\\Users\\yu xuan\\Downloads\\sdoc-hackathon-bundle",
+  path.join(os.homedir(), "Downloads", "sdoc-hackathon-bundle"),
 ];
+
+export const dynamic = "force-dynamic";
 
 function mime(name) {
   const n = (name || "").toLowerCase();
@@ -39,7 +43,12 @@ export async function GET(req) {
     }
   }
   return NextResponse.json(
-    { error: "not_on_this_host", hint: "Original files live in the official ZIP. On Vercel only extracted text is shown." },
+    {
+      error: "not_on_this_host",
+      hint:
+        "The original is in the organizer ZIP, which we do not publish with this public site. " +
+        "Extracted text is shown instead. Run the app locally, or set SDOC_DATA, to open originals.",
+    },
     { status: 404 }
   );
 }

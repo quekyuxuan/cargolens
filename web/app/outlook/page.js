@@ -3,25 +3,28 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { upsertLive } from "../../lib/live-mail";
+import { compareFields } from "../../lib/compare";
+import {
+  authorizeUrl,
+  explainAzureError,
+  graph,
+  isGuid,
+  LS_CLIENT,
+  LS_TENANT,
+  pkce,
+  randomString,
+  redirectUri,
+  SS_PKCE,
+  SS_TOKEN,
+} from "../../lib/graph";
 
-const LS_CLIENT = "cargolens-graph-client";
-const LS_TENANT = "cargolens-graph-tenant";
-
-function randomString(n) {
-  const a = new Uint8Array(n);
-  crypto.getRandomValues(a);
-  return Array.from(a, (b) => ("0" + b.toString(16)).slice(-2)).join("");
-}
-
-async function pkce() {
-  const verifier = randomString(32);
-  const data = new TextEncoder().encode(verifier);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  const challenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-  return { verifier, challenge };
+function pickPair(files) {
+  const si = files.find((f) => /(^|[_\-\s])si([_\-.\s]|$)|shipping.?instruction/i.test(f.name));
+  const bl = files.find(
+    (f) => f !== si && /(^|[_\-\s])bl([_\-.\s]|$)|bill.?of.?lading/i.test(f.name)
+  );
+  if (si && bl) return [si, bl];
+  return [files[0], files.find((f) => f !== files[0])];
 }
 
 export default function OutlookPage() {
@@ -30,6 +33,8 @@ export default function OutlookPage() {
   const [token, setToken] = useState("");
   const [msgs, setMsgs] = useState([]);
   const [err, setErr] = useState("");
+  const [busy, setBusy] = useState("");
+  const [redirect, setRedirect] = useState("");
   const [siFile, setSiFile] = useState(null);
   const [blFile, setBlFile] = useState(null);
   const [subject, setSubject] = useState("Manual upload — document check");
@@ -37,80 +42,142 @@ export default function OutlookPage() {
   useEffect(() => {
     setClientId(localStorage.getItem(LS_CLIENT) || "");
     setTenant(localStorage.getItem(LS_TENANT) || "common");
-    setToken(sessionStorage.getItem("cargolens-graph-token") || "");
+    setToken(sessionStorage.getItem(SS_TOKEN) || "");
+    setRedirect(redirectUri());
   }, []);
 
   async function connect() {
-    localStorage.setItem(LS_CLIENT, clientId.trim());
+    const id = clientId.trim();
+    if (!isGuid(id)) {
+      setErr("The Application (client) ID should look like 00000000-0000-0000-0000-000000000000.");
+      return;
+    }
+    setErr("");
+    localStorage.setItem(LS_CLIENT, id);
     localStorage.setItem(LS_TENANT, tenant.trim() || "common");
     const { verifier, challenge } = await pkce();
-    sessionStorage.setItem("cargolens-pkce", verifier);
-    const redirect = window.location.origin + "/outlook/callback";
-    const url =
-      "https://login.microsoftonline.com/" +
-      encodeURIComponent(tenant.trim() || "common") +
-      "/oauth2/v2.0/authorize?" +
-      new URLSearchParams({
-        client_id: clientId.trim(),
-        response_type: "code",
-        redirect_uri: redirect,
-        response_mode: "query",
-        scope: "openid offline_access User.Read Mail.Read",
-        code_challenge: challenge,
-        code_challenge_method: "S256",
-        state: randomString(8),
-      });
-    window.location.href = url;
+    sessionStorage.setItem(SS_PKCE, verifier);
+    window.location.href = authorizeUrl({
+      clientId: id,
+      tenant: tenant.trim() || "common",
+      challenge,
+      state: randomString(8),
+    });
+  }
+
+  function signOut() {
+    sessionStorage.removeItem(SS_TOKEN);
+    setToken("");
+    setMsgs([]);
   }
 
   async function loadMail() {
     setErr("");
-    const res = await fetch(
-      "https://graph.microsoft.com/v1.0/me/messages?$top=12&$select=id,subject,from,receivedDateTime,hasAttachments,bodyPreview",
-      { headers: { Authorization: "Bearer " + token } }
-    );
-    const data = await res.json();
-    if (!res.ok) {
-      setErr(data.error?.message || "Graph error");
-      return;
+    setBusy("Reading your inbox…");
+    try {
+      const data = await graph(
+        "/me/messages?$top=15&$select=id,subject,from,receivedDateTime,hasAttachments,bodyPreview",
+        token
+      );
+      setMsgs(data.value || []);
+      if (!(data.value || []).length) setErr("No messages returned.");
+    } catch (e) {
+      setErr(explainAzureError(e.message));
+      if (/expired/i.test(e.message)) setToken("");
+    } finally {
+      setBusy("");
     }
-    setMsgs(data.value || []);
   }
 
   async function importMsg(m) {
     setErr("");
-    const attRes = await fetch("https://graph.microsoft.com/v1.0/me/messages/" + m.id + "/attachments", {
-      headers: { Authorization: "Bearer " + token },
-    });
-    const att = await attRes.json();
-    const files = (att.value || []).filter((a) => a["@odata.type"] === "#microsoft.graph.fileAttachment");
-    const rec = {
-      email_id: "outlook_" + m.id.slice(0, 8),
-      subject: m.subject,
-      from: m.from?.emailAddress?.address,
+    setBusy("Downloading attachments…");
+    const id = "outlook_" + m.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12);
+    const base = {
+      email_id: id,
+      subject: m.subject || "(no subject)",
+      from: m.from?.emailAddress?.address || "",
       category: "BL_COMPARISON",
       decided_by: "outlook-ingest",
-      status: files.length >= 2 ? "NEEDS_REVIEW" : "NEEDS_REVIEW",
-      review_reason: files.length >= 2 ? "unreadable" : "missing_attachment",
       has_defect: false,
       defect_fields: [],
       rows: [],
-      body: m.bodyPreview,
-      attachments: files.map((f) => f.name),
-      file_kinds: files.map((f) => ({ path: f.name, kind: "unknown" })),
+      body: m.bodyPreview || "",
       source: "outlook",
     };
-    upsertLive(rec);
-    window.location.href = "/review/" + rec.email_id;
+
+    try {
+      const att = await graph("/me/messages/" + m.id + "/attachments", token);
+      const files = (att.value || []).filter(
+        (a) => a["@odata.type"] === "#microsoft.graph.fileAttachment"
+      );
+
+      if (files.length < 2) {
+        upsertLive({
+          ...base,
+          status: "NEEDS_REVIEW",
+          review_reason: "missing_attachment",
+          attachments: files.map((f) => f.name),
+          file_kinds: files.map((f) => ({ path: f.name, kind: "unknown" })),
+        });
+        window.location.href = "/review/" + id;
+        return;
+      }
+
+      const [si, bl] = pickPair(files);
+      setBusy("Reading the pair with Gemini…");
+      const res = await fetch("/api/vision", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          si: si.contentBytes,
+          bl: bl.contentBytes,
+          siName: si.name,
+          blName: bl.name,
+        }),
+      });
+      const data = await res.json();
+
+      const shared = {
+        ...base,
+        attachments: [si.name, bl.name],
+        file_kinds: [
+          { path: si.name, kind: "SI" },
+          { path: bl.name, kind: "BL" },
+        ],
+        status: "NEEDS_REVIEW",
+      };
+
+      if (!res.ok) {
+        upsertLive({ ...shared, review_reason: "unreadable", notes: [data.hint || data.error] });
+      } else {
+        // Gemini only reads the fields. Code compares them, and a clerk still confirms.
+        const cmp = compareFields(data.si_fields, data.bl_fields);
+        upsertLive({
+          ...shared,
+          review_reason: null,
+          extracted_by: "gemini-vision",
+          si_fields: data.si_fields,
+          bl_fields: data.bl_fields,
+          rows: cmp.rows,
+          draft_compare: cmp,
+        });
+      }
+      window.location.href = "/review/" + id;
+    } catch (e) {
+      setBusy("");
+      setErr(explainAzureError(e.message));
+    }
   }
 
   function dropManual() {
     if (!siFile || !blFile) {
-      setErr("Choose SI and bill of lading files.");
+      setErr("Choose an SI and a bill of lading.");
       return;
     }
-    const rec = {
-      email_id: "live_" + Date.now(),
+    const id = "live_" + Date.now();
+    upsertLive({
+      email_id: id,
       subject,
       from: "upload",
       category: "BL_COMPARISON",
@@ -120,14 +187,14 @@ export default function OutlookPage() {
       has_defect: false,
       defect_fields: [],
       rows: [],
+      attachments: [siFile.name, blFile.name],
       file_kinds: [
         { path: siFile.name, kind: "SI" },
         { path: blFile.name, kind: "BL" },
       ],
       source: "upload",
-    };
-    upsertLive(rec);
-    window.location.href = "/review/" + rec.email_id;
+    });
+    window.location.href = "/review/" + id;
   }
 
   return (
@@ -135,31 +202,61 @@ export default function OutlookPage() {
       <p className="kicker">Microsoft Graph · Mail.Read</p>
       <h1>Outlook inbox</h1>
       <p className="lede">
-        Register a public SPA in Azure (free student / personal account works). Redirect URI must be
-        this site <code>/outlook/callback</code>. Client ID stays in your browser, not the repo.
+        Import a real message, read the pair, compare the seven fields, and land it in the review
+        queue for confirmation. Your client ID stays in this browser; nothing is committed.
       </p>
+
+      <div className="note">
+        <strong>One-time Azure setup</strong>
+        <ol style={{ margin: "8px 0 0", paddingLeft: 20 }}>
+          <li>
+            portal.azure.com → App registrations → New registration. Accounts: personal + work is
+            fine.
+          </li>
+          <li>
+            Authentication → Add a platform → <strong>Single-page application</strong> (not Web) →
+            redirect URI <code>{redirect || "<site>/outlook/callback"}</code>
+          </li>
+          <li>API permissions → Microsoft Graph → Delegated → <code>Mail.Read</code></li>
+          <li>Copy the Application (client) ID into the box below.</li>
+        </ol>
+      </div>
 
       <div className="note">
         <p>
           Application (client) ID
           <br />
-          <input className="search" style={{ width: "100%", maxWidth: 480 }} value={clientId} onChange={(e) => setClientId(e.target.value)} />
+          <input
+            className="search"
+            style={{ width: "100%", maxWidth: 480 }}
+            placeholder="00000000-0000-0000-0000-000000000000"
+            value={clientId}
+            onChange={(e) => setClientId(e.target.value)}
+          />
         </p>
         <p>
           Tenant (<code>common</code> or a directory id)
           <br />
           <input className="search" value={tenant} onChange={(e) => setTenant(e.target.value)} />
         </p>
-        <button className="btn" type="button" onClick={connect} disabled={!clientId.trim()}>
-          Sign in with Microsoft
-        </button>
         {token ? (
-          <button className="btn ghost" type="button" onClick={loadMail}>
-            List recent mail
+          <>
+            <span className="badge ok">connected</span>{" "}
+            <button className="btn" type="button" onClick={loadMail} disabled={!!busy}>
+              List recent mail
+            </button>
+            <button className="btn ghost" type="button" onClick={signOut}>
+              Sign out
+            </button>
+          </>
+        ) : (
+          <button className="btn" type="button" onClick={connect}>
+            Sign in with Microsoft
           </button>
-        ) : null}
+        )}
       </div>
 
+      {busy ? <p>{busy}</p> : null}
       {err ? <div className="note">{err}</div> : null}
 
       {msgs.length ? (
@@ -179,7 +276,12 @@ export default function OutlookPage() {
                 <td>{m.from?.emailAddress?.address}</td>
                 <td>{m.hasAttachments ? "yes" : "no"}</td>
                 <td>
-                  <button className="btn" type="button" onClick={() => importMsg(m)}>
+                  <button
+                    className="btn"
+                    type="button"
+                    onClick={() => importMsg(m)}
+                    disabled={!!busy}
+                  >
                     Import
                   </button>
                 </td>
@@ -190,22 +292,31 @@ export default function OutlookPage() {
       ) : null}
 
       <h2 style={{ fontFamily: "Georgia, serif", fontSize: 22 }}>No Azure yet — drop files</h2>
-      <p className="lede">Creates a live case. Then Retry with Gemini vision on the review page.</p>
+      <p className="lede">
+        Creates the same kind of live case. Analyse it on the review page, then confirm.
+      </p>
       <p>
         Subject
         <br />
-        <input className="search" style={{ width: "100%", maxWidth: 480 }} value={subject} onChange={(e) => setSubject(e.target.value)} />
+        <input
+          className="search"
+          style={{ width: "100%", maxWidth: 480 }}
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+        />
       </p>
       <p>
-        SI <input type="file" accept=".pdf,image/*" onChange={(e) => setSiFile(e.target.files?.[0] || null)} />
+        Shipping instruction{" "}
+        <input type="file" accept=".pdf,.txt,image/*" onChange={(e) => setSiFile(e.target.files?.[0] || null)} />
       </p>
       <p>
-        Bill of lading <input type="file" accept=".pdf,image/*" onChange={(e) => setBlFile(e.target.files?.[0] || null)} />
+        Bill of lading{" "}
+        <input type="file" accept=".pdf,.txt,image/*" onChange={(e) => setBlFile(e.target.files?.[0] || null)} />
       </p>
       <button className="btn" type="button" onClick={dropManual}>
         Create live case
       </button>
-      <p className="lede">
+      <p className="lede" style={{ marginTop: 20 }}>
         <Link href="/incoming">How ingest maps to the engine</Link>
       </p>
     </main>
