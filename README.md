@@ -1,85 +1,150 @@
 # CargoLens
 
-Inbox → classify → read the shipping instruction and the bill of lading → compare seven fields in
-code → send it to a person when the system should not guess.
+Turns a mixed shipping mailbox into an SI vs bill of lading discrepancy report: classify each email, extract seven fields, compare them in code, and escalate to a person when the system should not guess.
 
-Built for the Averis × Monash Hackathon 2026 shipping-document use case.
+**Live demo:** https://cargolens-peach.vercel.app/  
+**Slides:** [docs/CargoLens.pptx](docs/CargoLens.pptx)
 
-Live demo: https://cargolens-peach.vercel.app/
+---
 
-**Starting a new chat?** Tell the agent to read `STATUS.md` first.
+## What you need
 
-## How it scores
+| Tool | Version (approx.) |
+| --- | --- |
+| Git | any recent |
+| Python | 3.10+ |
+| Node.js | 18+ (includes `npm`) |
 
-Rules classify, code compares, and the model is never allowed to decide whether a defect exists.
-Against the organizer's private reference set the engine reports **1.0**: classification macro-F1
-1.0, defect F1 1.0, 46/46 end-to-end, and escalation F1 1.0 on the twenty cases that must go to
-review.
+Optional:
 
-Gemini stays **off** during scoring. Five emails are scan-only or corrupted and the reference answer
-for them is human review, so reading them with a model would only create disagreement.
+- Organizer data bundle (emails + attachments) if you want originals and to re-run the engine
+- A Gemini API key if you want scan-only PDF retries
+- The organizer Docker scorer if you want to submit for a score
 
-## Engine
+---
 
-```powershell
-cd engine
-pip install -r requirements.txt
-
-python run.py                      # writes out/ and web/data/results.json
-python run.py --only email_001 email_004
-```
-
-Score it against the organizer container (`docker compose up` in their docker folder):
+## 1. Download the project
 
 ```powershell
-python run.py --data http://localhost:8080 --submit
+git clone https://github.com/quekyuxuan/cargolens.git
+cd cargolens
 ```
 
-Read a scan-only pair with Gemini — never together with `--submit`:
+Or download the ZIP from GitHub → **Code → Download ZIP**, then unzip and open that folder.
 
-```powershell
-python run.py --only email_512 --vision
-```
+---
 
-Outputs:
+## 2. Try the live site (no install)
 
-- `out/submission.json` — the shape `POST /submit` expects
-- `out/results.json` — richer rows, including extracted text per attachment
-- `web/data/results.json` — the same file the site reads
+Open https://cargolens-peach.vercel.app/
 
-Only `pdfplumber` and `openpyxl` are required. DOCX is read from the OOXML zip with the standard
-library, because `python-docx` needs an lxml DLL that Windows Application Control can block, which
-silently turned eight comparable pairs into "unreadable" and cost 0.08 of the score.
+| Page | What to do |
+| --- | --- |
+| **Inbox** | Browse the 520 processed emails (OK / mismatch / pending / other) |
+| **Pending Review** | Cases the engine refused to decide |
+| **Reviewed** | Clerk “Done” decisions (stored in your browser) |
+| **Reminders** | Mismatch senders grouped for follow-up |
+| **Demo** | Upload an official email `.json` and optional SI/BL files, then **Run** |
 
-## Site
+On Vercel, original attachments from the organizer ZIP are not hosted. Use **Show extracted text**, or run locally (below) to open originals.
+
+---
+
+## 3. Run the clerk UI locally
 
 ```powershell
 cd web
 npm install
-npm run dev     # http://localhost:3000
+npm run dev
 ```
 
-Copy `web/.env.example` to `web/.env.local` if you want the clerk-facing Gemini retry or original
-attachments locally.
+Open http://localhost:3000
 
-| Page | What it is for |
+Optional env (copy then edit):
+
+```powershell
+copy .env.example .env.local
+```
+
+| Variable | Purpose |
 | --- | --- |
-| Inbox | All 520 emails. Tiles filter; counts never overlap |
-| Reviewed | Comparison-OK mail a clerk marked Done, searchable, restorable to Inbox |
-| Pending Review | The twenty Pending cases, filtered by why they stopped |
-| Reminders | One row per sender who caused a mismatch, ready to chase |
-| Demo | Upload an official email JSON and optional SI/BL; same rules as the 520 |
+| `GEMINI_API_KEY` | Server-side only — powers **Analyse** / scan retries via `/api/vision` |
+| `GEMINI_MODEL` | Optional model id (has fallbacks if unset) |
+| `SDOC_DATA` | Path to the organizer bundle folder so `/api/files` can serve originals |
 
-## Data handling
+Restart `npm run dev` after changing `.env.local`. Never commit `.env.local`.
 
-The organizer bundle and `ground_truth.json` are never committed. The site reads originals from the
-local ZIP through `/api/files`; on the public deployment that route returns a 404 and the UI shows
-the extracted text instead.
+---
 
-## Deploy
+## 4. Run the Python engine
 
-1. Push to GitHub.
-2. Vercel → Add New Project → import the repo.
-3. **Root Directory** = `web`. Framework = Next.js.
-4. Optional: add `GEMINI_API_KEY` under Settings → Environment Variables so the clerk retry works
-   online. It is read server-side only and never reaches the browser.
+Processes the email bundle and writes results the site can load.
+
+```powershell
+cd engine
+pip install -r requirements.txt
+```
+
+Point at your data (folder with the emails/attachments, or set `SDOC_DATA` in `engine/.env`):
+
+```powershell
+copy .env.example .env
+# edit SDOC_DATA=... to your bundle path
+```
+
+Then:
+
+```powershell
+python run.py
+```
+
+Useful variants:
+
+```powershell
+python run.py --only email_001 email_004
+python run.py --only email_512 --vision
+python run.py --data http://localhost:8080 --submit
+```
+
+Do **not** use `--vision` together with `--submit`. Vision is for clerk retries on scan-only files; scoring expects those cases to stay Pending.
+
+Outputs:
+
+| File | Role |
+| --- | --- |
+| `out/submission.json` | Shape expected by `POST /submit` |
+| `out/results.json` | Richer rows (extracted text, etc.) |
+| `web/data/results.json` | Same payload the Next.js app reads |
+
+---
+
+## 5. How the pipeline works (short)
+
+```
+mailbox → classify → extract (txt/pdf/xlsx/docx) → normalise → compare
+                         ↓ (no text layer, optional)
+                   Gemini reads fields only
+                         ↓
+              OK · MISMATCH · Pending
+```
+
+- **Rules + code** decide OK / MISMATCH / Pending.
+- **Gemini** may fill fields from scans; it never decides a mismatch.
+- A clerk confirms before a vision-assisted case is filed.
+
+Seven compared fields: shipper, consignee, notify party, port of loading, port of discharge, container count, gross weight.
+
+---
+
+## 6. Deploy your own copy (optional)
+
+1. Push a fork to GitHub.
+2. In Vercel: **Add New Project** → import the repo.
+3. Set **Root Directory** to `web`, framework Next.js.
+4. Optional: add `GEMINI_API_KEY` (and `GEMINI_MODEL`) under Environment Variables.
+
+---
+
+## Data note
+
+The organizer bundle and `ground_truth.json` are **not** in this repo. The engine never loads ground truth. Keep private datasets on your machine only.
