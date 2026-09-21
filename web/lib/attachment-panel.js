@@ -90,8 +90,9 @@ function AttachmentCard({ file }) {
         ) : null
       ) : (
         <p className="sub" style={{ margin: 0 }}>
-          No text layer: scan-only or corrupted. Rules cannot read it — use Retry with Gemini vision
-          on the review page.
+          No text layer: scan-only or corrupted. On Review, use{" "}
+          <strong>Analyse attached scans with Gemini</strong> (needs the local organizer ZIP), or
+          upload the PDFs / use Demo.
         </p>
       )}
     </div>

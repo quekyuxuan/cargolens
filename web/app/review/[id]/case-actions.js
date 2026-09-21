@@ -5,7 +5,7 @@ import Link from "next/link";
 import { KIND_LABELS, loadOverrides, mailtoResend, mergeRecord, saveOverride } from "../../../lib/overrides";
 import { CAT_LABELS, FIELD_LABELS, displayStatus, statusClass } from "../../../lib/labels";
 import { loadLiveMail } from "../../../lib/live-mail";
-import { compareFields, FIELDS } from "../../../lib/compare";
+import { applyCompare, FIELDS } from "../../../lib/compare";
 import AttachmentPanel from "../../../lib/attachment-panel";
 
 function readFileB64(file) {
@@ -18,6 +18,25 @@ function readFileB64(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+async function bufferToB64(buf) {
+  const bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) : new Uint8Array(await buf.arrayBuffer());
+  let s = "";
+  const step = 0x8000;
+  for (let i = 0; i < bytes.length; i += step) {
+    s += String.fromCharCode.apply(null, bytes.subarray(i, i + step));
+  }
+  return btoa(s);
+}
+
+function pickAttachedPair(rec) {
+  const paths = (rec.attachments || []).map((p) => String(p).replace(/\\/g, "/"));
+  const si = paths.find((p) => /_SI\.|shipping.?instruction/i.test(p));
+  const bl = paths.find((p) => p !== si && /_BL\.|bill.?of.?lading/i.test(p));
+  if (si && bl) return [si, bl];
+  if (paths.length >= 2) return [paths[0], paths[1]];
+  return [null, null];
 }
 
 export default function CaseActions({ rec: initial, id }) {
@@ -60,7 +79,7 @@ export default function CaseActions({ rec: initial, id }) {
   function confirmDraft() {
     const draft = rec.draft_compare;
     if (!draft) {
-      setHint("Run a check on a replacement bill of lading first.");
+      setHint("Run Gemini on the scans (or a replacement pair) first.");
       return;
     }
     const saved = saveOverride(rec.email_id, {
@@ -69,10 +88,87 @@ export default function CaseActions({ rec: initial, id }) {
       closed: true,
       note,
       review_reason: null,
+      clerk_confirmed: true,
+      extracted_by: rec.extracted_by || "gemini-vision",
     });
     setState(saved);
     setRec(mergeRecord(rec, saved));
     setHint("Filed as " + draft.status + ". Inbox now shows this comparison.");
+  }
+
+  async function saveGeminiDraft(siFields, blFields, model) {
+    const cmp = applyCompare(siFields, blFields);
+    const n = retries + 1;
+    setRetries(n);
+    const saved = saveOverride(rec.email_id, {
+      action: "draft_compare",
+      closed: false,
+      note,
+      retries: n,
+      extracted_by: "gemini-vision",
+      gemini_model: model || null,
+      si_fields: siFields,
+      bl_fields: blFields,
+      draft_compare: cmp,
+      status: "NEEDS_REVIEW",
+      review_reason: "gemini_draft",
+      has_defect: false,
+      defect_fields: [],
+      rows: cmp.rows,
+      clerk_confirmed: false,
+    });
+    setState(saved);
+    setRec(mergeRecord(rec, saved));
+    setHint(
+      "Gemini scan ready — still a comparison request. Check the table, then Confirm. Nothing is auto-OK."
+    );
+  }
+
+  async function analyseAttachedScans() {
+    const [siPath, blPath] = pickAttachedPair(rec);
+    if (!siPath || !blPath) {
+      setHint("This case has no SI/BL paths on file. Upload both files below.");
+      return;
+    }
+    setBusy("Fetching originals and calling Gemini…");
+    setHint("");
+    try {
+      const [siRes, blRes] = await Promise.all([
+        fetch("/api/files?path=" + encodeURIComponent(siPath)),
+        fetch("/api/files?path=" + encodeURIComponent(blPath)),
+      ]);
+      if (!siRes.ok || !blRes.ok) {
+        const fail = !siRes.ok ? await siRes.json().catch(() => ({})) : await blRes.json().catch(() => ({}));
+        setBusy("");
+        setHint(
+          (fail.hint || "Originals are not on this host.") +
+            " Upload the two scan PDFs below, or use Demo with email_512.json + the pair."
+        );
+        return;
+      }
+      const siName = siPath.split("/").pop();
+      const blName = blPath.split("/").pop();
+      const res = await fetch("/api/vision", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          si: await bufferToB64(await siRes.blob()),
+          bl: await bufferToB64(await blRes.blob()),
+          siName,
+          blName,
+        }),
+      });
+      const data = await res.json();
+      setBusy("");
+      if (!res.ok) {
+        setHint(data.hint || data.error || "Gemini could not read the attached scans.");
+        return;
+      }
+      await saveGeminiDraft(data.si_fields, data.bl_fields, data.model);
+    } catch (e) {
+      setBusy("");
+      setHint(String(e.message || e));
+    }
   }
 
   async function runFiles(kind) {
@@ -83,13 +179,6 @@ export default function CaseActions({ rec: initial, id }) {
     setBusy(kind === "vision" ? "Calling Gemini vision…" : "Reading files…");
     setHint("");
     try {
-      let siFields = rec.si_fields || {};
-      let blFields = {};
-      const siTxt = siFile.name.toLowerCase().endsWith(".txt") ? await siFile.text() : null;
-      const blTxt = blFile.name.toLowerCase().endsWith(".txt") ? await blFile.text() : null;
-      if (siTxt && blTxt) {
-        setHint("Plain text uploaded. Use Gemini for scans/PDFs, or type fields on the mail page.");
-      }
       const res = await fetch("/api/vision", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -107,35 +196,20 @@ export default function CaseActions({ rec: initial, id }) {
             " Status stays Pending until a readable SI + bill of lading is attached."
         );
         setBusy("");
-        act("pending_unreadable", {
+        const saved = saveOverride(rec.email_id, {
+          action: "pending_unreadable",
           closed: false,
+          note,
+          retries,
           status: "NEEDS_REVIEW",
-          review_reason: rec.review_reason || "wrong_doc_type",
+          review_reason: rec.review_reason === "gemini_draft" ? "unreadable" : rec.review_reason || "unreadable",
         });
+        setState(saved);
+        setRec(mergeRecord(rec, saved));
         return;
       }
-      siFields = data.si_fields || siFields;
-      blFields = data.bl_fields || {};
-      const cmp = compareFields(siFields, blFields);
-      const n = retries + 1;
-      setRetries(n);
-      const saved = saveOverride(rec.email_id, {
-        action: "draft_compare",
-        closed: false,
-        note,
-        retries: n,
-        extracted_by: "gemini-vision",
-        si_fields: siFields,
-        bl_fields: blFields,
-        draft_compare: cmp,
-        status: "NEEDS_REVIEW",
-        review_reason: rec.review_reason || "wrong_doc_type",
-        rows: cmp.rows,
-      });
-      setState(saved);
-      setRec(mergeRecord(rec, saved));
       setBusy("");
-      setHint("Draft comparison ready. Confirm below to file as OK or MISMATCH. Nothing is auto-OK.");
+      await saveGeminiDraft(data.si_fields, data.bl_fields, data.model);
     } catch (e) {
       setBusy("");
       setHint(String(e));
@@ -214,8 +288,19 @@ export default function CaseActions({ rec: initial, id }) {
 
       {reason === "unreadable" ? (
         <div className="note">
-          <strong>Pending — unreadable.</strong> Upload readable files and run Gemini. Confirm before
+          <strong>Pending — unreadable.</strong> Official scoring leaves scans unread on purpose.
+          Run Gemini on the attached pair (local bundle), or upload readable files. Confirm before
           the case becomes OK or MISMATCH.
+        </div>
+      ) : null}
+
+      {reason === "gemini_draft" || rec.extracted_by === "gemini-vision" ? (
+        <div className="note">
+          <strong>
+            <span className="badge hold">Gemini scan</span> Still a comparison request.
+          </strong>{" "}
+          Check the seven fields. Confirm is the clerk verdict — Done / file report only after that.
+          {rec.gemini_model ? <span className="sub"> · {rec.gemini_model}</span> : null}
         </div>
       ) : null}
 
@@ -228,6 +313,39 @@ export default function CaseActions({ rec: initial, id }) {
       <h2>Original message</h2>
       {rec.body ? <p className="body-text">{rec.body}</p> : <p className="lede">No body text.</p>}
       <AttachmentPanel rec={rec} />
+
+      {(rec.rows && rec.rows.length) || rec.draft_compare?.rows?.length ? (
+        <>
+          <h2>Comparison{rec.extracted_by === "gemini-vision" ? " (Gemini draft)" : ""}</h2>
+          <table className="compare">
+            <thead>
+              <tr>
+                <th>Field</th>
+                <th>Shipping instruction</th>
+                <th>Bill of lading</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(rec.rows?.length ? rec.rows : rec.draft_compare.rows).map((row) => (
+                <tr key={row.field} className={row.match === false ? "hit" : ""}>
+                  <td className="fld">
+                    {FIELD_LABELS[row.field] || row.field}
+                    <div className="sub" style={{ fontWeight: 400 }}>
+                      {row.match === false
+                        ? "Mismatch"
+                        : row.match === true
+                          ? "Match"
+                          : "Not compared"}
+                    </div>
+                  </td>
+                  <td className="si">{row.si || "—"}</td>
+                  <td className="bl">{row.bl || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      ) : null}
 
       <p>
         <Link href={"/mail/" + rec.email_id}>Open full mail view →</Link>
@@ -256,22 +374,56 @@ export default function CaseActions({ rec: initial, id }) {
         </label>
       </p>
 
-      {reason === "wrong_doc_type" || reason === "unreadable" || reason === "missing_attachment" || !reason ? (
+      {reason === "wrong_doc_type" ||
+      reason === "unreadable" ||
+      reason === "missing_attachment" ||
+      reason === "gemini_draft" ||
+      !reason ? (
         <div className="note">
-          <p>Replace with the correct pair, then analyse. Confirm is required to leave Pending.</p>
+          <p>
+            {reason === "unreadable" || reason === "gemini_draft"
+              ? "Scan the attached originals with Gemini, or replace the pair and analyse."
+              : "Replace with the correct pair, then analyse. Confirm is required to leave Pending."}
+          </p>
+          {(reason === "unreadable" || reason === "gemini_draft") &&
+          (rec.attachments || []).length >= 2 ? (
+            <p>
+              <button
+                className="btn"
+                type="button"
+                onClick={analyseAttachedScans}
+                disabled={!!busy}
+              >
+                Analyse attached scans with Gemini
+              </button>
+            </p>
+          ) : null}
           <p>
             Shipping instruction{" "}
-            <input type="file" accept=".pdf,.txt,image/*" onChange={(e) => setSiFile(e.target.files?.[0] || null)} />
+            <input
+              type="file"
+              accept=".pdf,.txt,image/*"
+              onChange={(e) => setSiFile(e.target.files?.[0] || null)}
+            />
           </p>
           <p>
             Bill of lading{" "}
-            <input type="file" accept=".pdf,.txt,image/*" onChange={(e) => setBlFile(e.target.files?.[0] || null)} />
+            <input
+              type="file"
+              accept=".pdf,.txt,image/*"
+              onChange={(e) => setBlFile(e.target.files?.[0] || null)}
+            />
           </p>
           <button className="btn" type="button" onClick={() => runFiles("vision")} disabled={!!busy}>
             Analyse replacement ({retries})
           </button>
-          <button className="btn" type="button" onClick={confirmDraft} disabled={!rec.draft_compare}>
-            Confirm and file report
+          <button
+            className="btn"
+            type="button"
+            onClick={confirmDraft}
+            disabled={!rec.draft_compare || state?.action === "clerk_confirmed_compare"}
+          >
+            Confirm Gemini table and file report
           </button>
           <a className="btn ghost" href={mailtoResend(rec)}>
             Ask sender for the correct type
