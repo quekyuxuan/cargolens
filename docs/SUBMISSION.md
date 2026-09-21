@@ -14,30 +14,20 @@ CargoLens
 **Project Description / Summary**
 
 ```
-CargoLens turns a shared shipping-documentation mailbox into a discrepancy report.
+CargoLens turns a mixed shipping mailbox into an SI vs bill of lading discrepancy report.
 
-A forwarder's documentation team receives a mix of requests, and only some of them ask to verify a
-draft bill of lading against the shipping instruction the customer sent. For those, a clerk manually
-compares seven fields - shipper, consignee, notify party, port of loading, port of discharge,
-container count and gross weight. A wrong consignee or discharge port is usually discovered at the
-destination instead of in the mailbox, and the correction costs an amendment fee and a delayed cargo
+Forwarder clerks must check seven fields by eye — shipper, consignee, notify party, both ports,
+containers, gross weight. Errors often surface only at destination as amendment fees and delayed
 release.
 
-CargoLens classifies every incoming email, extracts those seven fields from text, PDF, Excel and Word
-attachments, and compares them in deterministic code, producing one of three outcomes: Comparison OK,
-MISMATCH with the offending fields named, or Pending with the reason it could not decide - wrong
-document type, missing attachment, unreadable file, or a blank required value.
-
-AI is used where rules genuinely cannot help: scan-only documents with no text layer are read by
-Gemini 3.6 Flash. The model only reads fields; the mismatch verdict always comes from the comparison
-code, and a clerk confirms before anything is filed. On the provided 520-email dataset the engine
-scores 1.0 against the organizer's evaluation endpoint, with Gemini deliberately switched off so the
-five intentionally unreadable cases still escalate to a human.
-
-The clerk interface is a Next.js app deployed on Vercel. Judges can upload an official email JSON
-and optional SI/BL files on the Demo page to see the same classify-then-compare path.
+CargoLens classifies every email, extracts those fields from text, PDF, Excel and Word, and compares
+them in deterministic code: Comparison OK, MISMATCH with named fields, or Pending with a reason.
+Gemini Flash reads scan-only files but never decides a mismatch; a clerk confirms first. On the
+official 520-email set the engine scores 1.0 with vision off. A Next.js Demo on Vercel lets judges
+upload an email JSON and optional attachments.
 ```
 
+(~115 words; form limit 150)
 **GitHub Repository Link**
 
 ```
