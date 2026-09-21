@@ -93,8 +93,11 @@ name never glues onto its address (`APRIL FINE PAPER TRADINGON BEHALF OF…` bro
 
 **Gemini had never actually run.** Every call returned HTTP 404 because `gemini-2.0-flash` is
 retired, and the error was swallowed into a generic "unreadable". Both `engine/vision.py` and
-`web/app/api/vision/route.js` now use **`gemini-3.6-flash`** (override with `GEMINI_MODEL`) and
-report the upstream message. Verified: `email_512` and `email_513` scans are read and compared.
+`web/app/api/vision/route.js` now use **`gemini-3.5-flash`** by default (override with `GEMINI_MODEL`),
+fall back through `gemini-flash-latest` / `gemini-3.8-flash` / `gemini-3.6-flash` when a model is
+busy or retired, and report the upstream message. Verified: `email_512` and `email_513` scans are
+read and compared. On Demo, a Gemini read stays **Pending** with a **Gemini scan** badge until the
+clerk confirms the table, then Done.
 
 ## Architecture
 

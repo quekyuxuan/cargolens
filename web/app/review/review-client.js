@@ -12,6 +12,7 @@ const REASON_COPY = {
   missing_attachment: "Pending — attachment missing, ask sender to resend",
   unreadable: "Pending — cannot read; retry Gemini or request a clean scan",
   missing_value: "Pending — required field blank",
+  gemini_draft: "Pending — Gemini scan; clerk must confirm the field table",
 };
 
 const REASON_LABELS = {
@@ -19,6 +20,7 @@ const REASON_LABELS = {
   missing_attachment: "Missing attachment",
   unreadable: "Unreadable file",
   missing_value: "Blank required value",
+  gemini_draft: "Gemini scan — confirm table",
 };
 
 const PER_PAGE = 10;

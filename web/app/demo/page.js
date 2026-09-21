@@ -16,11 +16,13 @@ export default function DemoPage() {
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   const [rec, setRec] = useState(null);
+  const [confirmed, setConfirmed] = useState(false);
   const [done, setDone] = useState(false);
 
   async function run() {
     setErr("");
     setDone(false);
+    setConfirmed(false);
     if (!jsonFile) {
       setErr("Upload an email JSON first — any file from the official inbox folder works.");
       return;
@@ -40,21 +42,58 @@ export default function DemoPage() {
       const files = [];
       if (siFile) files.push(await fileToBytes(siFile));
       if (blFile) files.push(await fileToBytes(blFile));
-      setBusy("Classifying" + (files.length ? " and comparing…" : "…"));
+      setBusy(
+        files.length
+          ? "Classifying and comparing… (scans may take a few seconds on Gemini)"
+          : "Classifying…"
+      );
       const result = await processDemo(email, files);
       result.demo_source = origId;
       setRec(result);
       setBusy("");
+      if (result.notes?.length && result.review_reason === "unreadable") {
+        setErr(result.notes.join(" "));
+      }
     } catch (e) {
       setBusy("");
       setErr(String(e.message || e));
     }
   }
 
+  function confirmGemini() {
+    if (!rec?.draft_compare) return;
+    const draft = rec.draft_compare;
+    const next = {
+      ...rec,
+      status: draft.status,
+      review_reason: null,
+      has_defect: draft.has_defect,
+      defect_fields: draft.defect_fields || [],
+      rows: draft.rows,
+      clerk_confirmed: true,
+      notes: [
+        ...(rec.notes || []).filter((n) => !/Confirm — only then/i.test(n)),
+        "Clerk confirmed the Gemini table.",
+      ],
+    };
+    setRec(next);
+    setConfirmed(true);
+  }
+
   function markDone() {
     if (!rec) return;
+    if (rec.extracted_by === "gemini-vision" && !confirmed && !rec.clerk_confirmed) {
+      setErr("Confirm the Gemini table first, then mark Done.");
+      return;
+    }
     upsertLive({ ...rec, reviewed: true });
-    saveOverride(rec.email_id, { reviewed: true, action: "demo_done", closed: true });
+    saveOverride(rec.email_id, {
+      reviewed: true,
+      action: "demo_done",
+      closed: true,
+      status: rec.status,
+      review_reason: null,
+    });
     setDone(true);
     router.push("/reviewed");
   }
@@ -62,11 +101,16 @@ export default function DemoPage() {
   function reset() {
     setRec(null);
     setDone(false);
+    setConfirmed(false);
     setErr("");
     setJsonFile(null);
     setSiFile(null);
     setBlFile(null);
   }
+
+  const isGemini = rec?.extracted_by === "gemini-vision";
+  const needsConfirm = isGemini && !confirmed && !rec?.clerk_confirmed;
+  const showTable = rec?.rows && rec.rows.length > 0;
 
   return (
     <main>
@@ -76,7 +120,8 @@ export default function DemoPage() {
         Drop an official email JSON — comparison request, invoice, spam, general, anything in the
         pack. Attach the shipping instruction and bill of lading only if you have them. The same
         rules as the 520-email run classify it; comparison runs only on comparison requests. Text,
-        Excel, Word, and PDFs with a text layer are read here. Scans go to Gemini.
+        Excel, Word, and PDFs with a text layer are read here. Scans go to Gemini and stay Pending
+        until a clerk confirms the table.
       </p>
 
       <div className="filters" style={{ flexDirection: "column", alignItems: "stretch", gap: 12 }}>
@@ -125,7 +170,9 @@ export default function DemoPage() {
           {blFile ? " · BL " + blFile.name : ""}
         </p>
       ) : (
-        <p className="count">Example: inbox/email_001.json plus email_001_SI.txt and email_001_BL.txt</p>
+        <p className="count">
+          Example: email_512.json plus the two scan PDFs, or email_001.json with the .txt pair
+        </p>
       )}
 
       {rec ? (
@@ -136,18 +183,32 @@ export default function DemoPage() {
             From {rec.from || "—"} · {CAT_LABELS[rec.category] || rec.category}
             {" · "}
             <span className={"badge " + statusClass(rec.status)}>{displayStatus(rec.status)}</span>
-            {rec.extracted_by === "gemini-vision" ? " · read by Gemini" : null}
+            {isGemini ? (
+              <>
+                {" · "}
+                <span className="badge hold">Gemini scan</span>
+                {rec.gemini_model ? <span className="sub"> · {rec.gemini_model}</span> : null}
+              </>
+            ) : null}
             {rec.extracted_by === "rules" ? " · read by rules" : null}
           </p>
+
+          {isGemini ? (
+            <div className="note">
+              <strong>Gemini scanned this pair.</strong> It is still a comparison request. Check the
+              seven fields below — the model only reads; Confirm is the clerk verdict before Done.
+            </div>
+          ) : null}
+
           {rec.body ? <p className="body-text">{rec.body}</p> : null}
           {rec.notes && rec.notes.length ? (
             <div className="note">{rec.notes.join(" ")}</div>
           ) : null}
-          {rec.review_reason ? (
+          {rec.review_reason && rec.review_reason !== "gemini_draft" ? (
             <p className="count">Pending reason: {rec.review_reason}</p>
           ) : null}
 
-          {rec.rows && rec.rows.length ? (
+          {showTable ? (
             <table className="compare">
               <thead>
                 <tr>
@@ -162,7 +223,11 @@ export default function DemoPage() {
                     <td className="fld">
                       {FIELD_LABELS[row.field] || row.field}
                       <div className="sub" style={{ fontWeight: 400 }}>
-                        {row.match === false ? "Mismatch" : row.match === true ? "Match" : "Not compared"}
+                        {row.match === false
+                          ? "Mismatch"
+                          : row.match === true
+                            ? "Match"
+                            : "Not compared"}
                       </div>
                     </td>
                     <td className="si">{row.si || "—"}</td>
@@ -187,12 +252,27 @@ export default function DemoPage() {
               </>
             ) : (
               <>
-                Staff check finished? Mark Done to archive this demo case.
-                <div style={{ marginTop: 10 }}>
-                  <button className="btn" type="button" onClick={markDone}>
-                    Done
-                  </button>
-                </div>
+                {needsConfirm ? (
+                  <>
+                    Confirm the Gemini table when the fields look right. That files Comparison OK or
+                    MISMATCH; then you can mark Done.
+                    <div style={{ marginTop: 10 }}>
+                      <button className="btn" type="button" onClick={confirmGemini}>
+                        Confirm Gemini table
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {isGemini ? "Table confirmed. " : ""}
+                    Staff check finished? Mark Done to archive this demo case.
+                    <div style={{ marginTop: 10 }}>
+                      <button className="btn" type="button" onClick={markDone}>
+                        Done
+                      </button>
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>

@@ -92,6 +92,7 @@ function finishCompare(record, siFields, blFields) {
 
 async function visionOrUnreadable(record, si, bl, why) {
   if (why) record.notes.push(why);
+  record.attachments = [si.name, bl.name];
   const { ok, data } = await visionPair(si, bl);
   if (!ok) {
     record.status = "NEEDS_REVIEW";
@@ -99,12 +100,26 @@ async function visionOrUnreadable(record, si, bl, why) {
     record.notes.push(data.hint || data.error || "Gemini failed");
     return record;
   }
+  // Gemini only suggests fields. Clerk must confirm the draft table before Done.
+  const cmp = applyCompare(data.si_fields, data.bl_fields);
   record.extracted_by = "gemini-vision";
+  record.gemini_model = data.model || null;
+  record.si_fields = data.si_fields;
+  record.bl_fields = data.bl_fields;
+  record.rows = cmp.rows;
+  record.draft_compare = cmp;
+  record.status = "NEEDS_REVIEW";
+  record.review_reason = "gemini_draft";
+  record.has_defect = false;
+  record.defect_fields = [];
   record.file_kinds = [
     { path: si.name, kind: "SI" },
     { path: bl.name, kind: "BL" },
   ];
-  return finishCompare(record, data.si_fields, data.bl_fields);
+  record.notes.push(
+    "Gemini scanned both files. Check the table, then Confirm — only then can you mark Done."
+  );
+  return record;
 }
 
 /**

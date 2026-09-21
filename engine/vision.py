@@ -1,10 +1,21 @@
 """Gemini vision extract. Used only when text extract fails. Does not decide mismatch."""
 import json
 import os
+import urllib.error
 import urllib.request
 from pathlib import Path
 
-MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.6-flash")
+MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
+FALLBACKS = []
+for _m in (
+    MODEL,
+    "gemini-3.5-flash",
+    "gemini-flash-latest",
+    "gemini-3.8-flash",
+    "gemini-3.6-flash",
+):
+    if _m and _m not in FALLBACKS:
+        FALLBACKS.append(_m)
 
 FIELDS = (
     "shipper",
@@ -54,31 +65,43 @@ def extract_fields_vision(filename, data, mime=None):
         ],
         "generationConfig": {"temperature": 0},
     }
-    url = (
-        "https://generativelanguage.googleapis.com/v1beta/models/"
-        + MODEL
-        + ":generateContent?key="
-        + key
-    )
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            payload = json.loads(resp.read())
-    except Exception as exc:
-        return None, str(exc)
-    text = (
-        payload.get("candidates", [{}])[0]
-        .get("content", {})
-        .get("parts", [{}])[0]
-        .get("text", "")
-    )
-    fields, err = _parse_json_fields(text)
-    return fields, err
+    errors = []
+    for model in FALLBACKS:
+        url = (
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            + model
+            + ":generateContent?key="
+            + key
+        )
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(body).encode(),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=90) as resp:
+                payload = json.loads(resp.read())
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", "replace")[:300]
+            errors.append("%s: HTTP %s %s" % (model, exc.code, detail))
+            if exc.code in (404, 429, 503):
+                continue
+            return None, errors[-1]
+        except Exception as exc:
+            errors.append("%s: %s" % (model, exc))
+            continue
+        text = (
+            payload.get("candidates", [{}])[0]
+            .get("content", {})
+            .get("parts", [{}])[0]
+            .get("text", "")
+        )
+        fields, err = _parse_json_fields(text)
+        if fields and not err:
+            return fields, None
+        errors.append("%s: %s" % (model, err or "no fields"))
+    return None, " · ".join(errors) or "all models failed"
 
 
 def _parse_json_fields(text):

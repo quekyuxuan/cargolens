@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
 
-const MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+// Prefer a stable Flash id. gemini-3.6-flash often returns 503 under load.
+const MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
+const FALLBACKS = [
+  MODEL,
+  "gemini-3.5-flash",
+  "gemini-flash-latest",
+  "gemini-3.8-flash",
+  "gemini-3.6-flash",
+].filter((m, i, arr) => arr.indexOf(m) === i);
 
 const FIELDS = [
   "shipper",
@@ -38,8 +46,6 @@ export async function POST(req) {
   const bl = await geminiExtract(key, body.bl, body.blName || "bl.pdf");
 
   if (!si.fields || !bl.fields) {
-    // Never hide the upstream reason: a retired model or an exhausted quota looks
-    // exactly like an unreadable document otherwise.
     return NextResponse.json(
       {
         error: "vision_failed",
@@ -53,7 +59,7 @@ export async function POST(req) {
     si_fields: si.fields,
     bl_fields: bl.fields,
     extracted_by: "gemini-vision",
-    model: MODEL,
+    model: si.model || bl.model || MODEL,
   });
 }
 
@@ -72,32 +78,54 @@ async function geminiExtract(key, base64, name) {
     FIELDS.join(", ") +
     ". Use null if a field is unreadable. Do not invent values.";
 
-  let payload;
-  try {
-    const res = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/" + MODEL + ":generateContent?key=" + key,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: prompt }, { inline_data: { mime_type: mimeOf(name), data: base64 } }],
-            },
-          ],
-          generationConfig: { temperature: 0 },
-        }),
+  const errors = [];
+  for (const model of FALLBACKS) {
+    try {
+      const res = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/models/" +
+          model +
+          ":generateContent?key=" +
+          key,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  { text: prompt },
+                  { inline_data: { mime_type: mimeOf(name), data: base64 } },
+                ],
+              },
+            ],
+            generationConfig: { temperature: 0 },
+          }),
+        }
+      );
+      const payload = await res.json();
+      if (!res.ok) {
+        const msg = payload?.error?.message || "HTTP " + res.status;
+        errors.push(model + ": " + msg);
+        // Busy / retired — try the next model.
+        if (res.status === 503 || res.status === 429 || res.status === 404) continue;
+        return { fields: null, error: msg };
       }
-    );
-    payload = await res.json();
-    if (!res.ok) {
-      return { fields: null, error: payload?.error?.message || "HTTP " + res.status };
+      const parsed = parseFields(payload);
+      if (parsed.fields) return { ...parsed, model };
+      errors.push(model + ": " + (parsed.error || "no fields"));
+    } catch (e) {
+      errors.push(model + ": " + String(e));
     }
-  } catch (e) {
-    return { fields: null, error: String(e) };
   }
+  return { fields: null, error: errors.join(" · ") || "all models failed" };
+}
 
-  const text = payload?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+function parseFields(payload) {
+  let text = payload?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  text = text.trim();
+  if (text.startsWith("```")) {
+    text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  }
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}") + 1;
   if (start < 0) return { fields: null, error: "model returned no JSON" };
