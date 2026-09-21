@@ -40,7 +40,7 @@ On screen: use the **Type** dropdown to show the five categories, then set it ba
 > "The rule we designed around is that the model reads, but the model never decides. Every verdict
 > comes from the comparison code, so the same pair always gives the same answer."
 
-On screen: the architecture diagram from the deck, or `docs/SLIDES.md` section 3.
+On screen: the architecture slide from `docs/CargoLens.pptx`.
 
 ## 1:35–2:30 · Live demo, the happy path and a caught defect
 
@@ -92,7 +92,7 @@ Open **Reminders**.
 ## 4:05–4:40 · Impact and close
 
 On screen: the scorer result — either the terminal right after
-`python run.py --data http://localhost:8080 --submit`, or the results section of `docs/SLIDES.md`.
+`python run.py --data http://localhost:8080 --submit`, or the score slide in `docs/CargoLens.pptx`.
 There is no Benchmark page in the app any more; the score belongs in the deck, not in the tool the
 clerk uses every day.
 

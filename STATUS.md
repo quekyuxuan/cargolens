@@ -219,9 +219,9 @@ Class names were kept, so nearly all styling lives in `web/app/globals.css`.
 
 ## Submission material — already written and pushed
 
-- `docs/SLIDES.md` — the deck. Covers the four required sections: technical architecture,
-  implementation details, challenges faced, future roadmap. The rules accept a GitHub document as the
-  slide-deck link.
+- `docs/CargoLens.pptx` — the deck. Covers the four required sections: technical architecture,
+  implementation details, challenges faced, future roadmap. Form link:
+  `https://github.com/quekyuxuan/cargolens/blob/master/docs/CargoLens.pptx`.
 - `docs/VIDEO_SCRIPT.md` — timed to 4:40 against the 5:00 limit, with the exact pages to click.
 - `docs/SUBMISSION.md` — every form answer ready to paste, plus a pre-submit checklist.
 

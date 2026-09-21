@@ -22,12 +22,10 @@ release.
 
 CargoLens classifies every email, extracts those fields from text, PDF, Excel and Word, and compares
 them in deterministic code: Comparison OK, MISMATCH with named fields, or Pending with a reason.
-Gemini Flash reads scan-only files but never decides a mismatch; a clerk confirms first. On the
-official 520-email set the engine scores 1.0 with vision off. A Next.js Demo on Vercel lets judges
-upload an email JSON and optional attachments.
+A Next.js Demo on Vercel lets judges upload an email JSON and optional attachments.
 ```
 
-(~115 words; form limit 150)
+(~95 words; form limit 150)
 **GitHub Repository Link**
 
 ```
@@ -43,10 +41,10 @@ https://cargolens-peach.vercel.app/
 **Slide Deck / Documentation Link**
 
 ```
-https://github.com/quekyuxuan/cargolens/blob/master/docs/SLIDES.md
+https://github.com/quekyuxuan/cargolens/blob/master/docs/CargoLens.pptx
 ```
 
-Covers all four required sections: technical architecture, implementation details, challenges faced,
+PowerPoint deck covering technical architecture, implementation details, challenges faced, and
 future roadmap.
 
 **Video Demo Link**
