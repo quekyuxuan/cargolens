@@ -35,7 +35,7 @@ export default function MailView({ rec: initial, id }) {
           <Link href="/">Inbox</Link>
         </p>
         <h1>Email not on this device</h1>
-        <p className="lede">Outlook / upload cases live in this browser only.</p>
+        <p className="lede">Demo cases live in this browser only.</p>
       </main>
     );
   }

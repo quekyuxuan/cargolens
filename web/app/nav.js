@@ -8,8 +8,7 @@ const ITEMS = [
   { href: "/review", label: "Pending Review", icon: "flag" },
   { href: "/reviewed", label: "Reviewed", icon: "check" },
   { href: "/reminders", label: "Reminders", icon: "bell" },
-  { href: "/incoming", label: "New mail", icon: "mail" },
-  { href: "/outlook", label: "Outlook", icon: "plug" },
+  { href: "/demo", label: "Demo", icon: "play" },
 ];
 
 const PATHS = {
@@ -17,9 +16,7 @@ const PATHS = {
   flag: "M5 3v14M5 4h8.5l-1.4 3 1.4 3H5",
   check: "M4 10.6 7.8 14.5 16 5.5",
   bell: "M6 8.5a4 4 0 0 1 8 0c0 3 1 4.5 1 4.5H5s1-1.5 1-4.5ZM8.4 16a1.9 1.9 0 0 0 3.2 0",
-  mail: "M3.5 5.5h13v9h-13v-9Zm0 .4 6.5 4.8 6.5-4.8",
-  plug: "M7.5 3v4m5-4v4M5.5 7.5h9v2.2a4.5 4.5 0 0 1-9 0V7.5ZM10 14.2V17",
-  chart: "M4 16.5V9m4 7.5V4.5m4 12v-5m4 5V7",
+  play: "M6 4.5v11l9-5.5-9-5.5Z",
 };
 
 function Icon({ name }) {

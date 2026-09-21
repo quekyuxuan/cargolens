@@ -99,7 +99,7 @@ report the upstream message. Verified: `email_512` and `email_513` scans are rea
 ## Architecture
 
 ```
-bundle / Outlook Graph / clerk upload
+bundle / Demo upload
         │
         ▼
  Python engine: loader → classify → extract (txt, pdf, xlsx, docx) → normalize → compare
@@ -107,7 +107,7 @@ bundle / Outlook Graph / clerk upload
         │                                    └─ no text layer, opt-in only ─▶ Gemini 3.6 Flash
         ▼                                                                     (reads, never judges)
  results.json ──▶ Next.js 14 App Router on Vercel
-                   ├─ /api/vision  server-side Gemini for clerk retries
+                   ├─ /api/vision  server-side Gemini for Demo scans / clerk retries
                    └─ /api/files   serves an original only if the ZIP is on that host
 ```
 
@@ -134,18 +134,16 @@ bundle / Outlook Graph / clerk upload
 | `/review` + `/review/[id]` | The 20 Pending cases. Search, "Why it stopped" filter, 10 a page, upload → Analyse → Confirm |
 | `/reviewed` | Done archive. Search, 10 a page, Restore to inbox |
 | `/reminders` | One row per mismatch sender. Search, 10 a page, mailto reminder, clerk-flagged filter |
-| `/incoming` | How any later message enters the same pipeline |
-| `/outlook` + `/outlook/callback` | Graph PKCE import, or drop two files without Azure |
+| `/demo` | Judge upload: email JSON + optional SI/BL. Same classify-then-compare path. Done archives it |
 
-Sidebar order is Inbox · Pending Review · Reviewed · Reminders · New mail · Outlook. There is
-deliberately **no Benchmark page** — see "Deleted on purpose" below.
+Sidebar order is Inbox · Pending Review · Reviewed · Reminders · Demo. `/incoming` and `/outlook`
+redirect here. There is deliberately **no Benchmark page** — see "Deleted on purpose" below.
 
 ### Web libs
 
-`labels.js` (labels, `displayStatus`, `summarize`), `compare.js` (browser-side deterministic
-compare), `slim.js` (list-page projection), `overrides.js` (clerk localStorage + export/import +
-`clearClerkLocal`), `live-mail.js` (Outlook/upload cases), `graph.js` (PKCE, `explainAzureError`),
-`attachment-panel.js`.
+`labels.js` (labels, `displayStatus`, `summarize`), `compare.js` / `normalize.js` (same field rules
+as the engine), `classify.js`, `extract-txt.js`, `extract-bin.js`, `process-email.js` (Demo ingest),
+`slim.js`, `overrides.js`, `live-mail.js`, `attachment-panel.js`.
 
 ## Things that surprise people
 
@@ -191,6 +189,8 @@ Trimmed on 20 Sep so the judges see a clerk's tool, not a scoreboard:
   them and went stale the moment a clerk edited anything.
 - **The "Decisions live on this device" panel on `/reviewed`**, with Export/Import. See the
   `localStorage` note above for what this means for judges.
+- **New mail and Outlook.** Replaced by `/demo`. Judges upload an official email JSON and optional
+  SI/BL. Azure Graph is gone. Old URLs redirect.
 
 ## Design system (restyled 20 Sep)
 
@@ -226,13 +226,7 @@ Class names were kept, so nearly all styling lives in `web/app/globals.css`.
 
 1. **Record the video.** Script is ready. Record locally so originals open; say on camera that the
    public site shows extracted text because the dataset is the organizer's.
-2. **Add `GEMINI_API_KEY` in Vercel** → Settings → Environment Variables → Redeploy, so judges can use
-   the clerk retry. Optional; without it the route returns 501 with an explanation.
-3. **Register the Azure SPA app** for Outlook. Redirect URI must sit under Authentication →
-   **Single-page application**, permission `Mail.Read`. Optional; the page explains the setup itself.
-4. **Eligibility — check this first.** The rules say *"Teams of 2 to 5 members only."* If registered
+2. **Add `GEMINI_API_KEY` in Vercel** so Demo scans and clerk retries work online. Optional.
+3. **Eligibility — check this first.** The rules say *"Teams of 2 to 5 members only."* If registered
    solo, contact Ming Dong (+60 12-368 8837), the approval contact named in the rules. Code cannot fix
    this one.
-5. ~~Optional polish: homepage subtitle and Benchmark wording.~~ Done. The homepage lede no longer
-   repeats the counts sentence that `inbox-client.js` already prints, and the Benchmark lede now uses
-   the same "rules classify, code compares" phrasing as the README.

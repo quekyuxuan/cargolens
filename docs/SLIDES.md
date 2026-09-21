@@ -51,7 +51,7 @@ mutually exclusive and add up to 520.
 ```
                         ┌──────────────────────────────┐
   organizer bundle ────▶│  Python engine               │
-  or Outlook/Graph      │  loader → classify → extract │──▶ results.json
+  or Demo page upload   │  loader → classify → extract │──▶ results.json
   or clerk upload       │  → normalise → compare       │    submission.json
                         └───────────┬──────────────────┘
                                     │ (no text layer, opt-in only)
@@ -59,7 +59,7 @@ mutually exclusive and add up to 520.
                           Gemini 3.6 Flash (vision)
                           reads fields · never judges
 
-  results.json ──▶ Next.js on Vercel ──▶ Inbox · Pending Review · Reviewed · Reminders · Outlook
+  results.json ──▶ Next.js on Vercel ──▶ Inbox · Pending Review · Reviewed · Reminders · Demo
                          │
                          ├─ /api/vision  server-side Gemini call for clerk retries
                          └─ /api/files   serves an original only if the ZIP is on that host

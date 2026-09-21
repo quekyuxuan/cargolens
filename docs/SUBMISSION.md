@@ -34,8 +34,8 @@ code, and a clerk confirms before anything is filed. On the provided 520-email d
 scores 1.0 against the organizer's evaluation endpoint, with Gemini deliberately switched off so the
 five intentionally unreadable cases still escalate to a human.
 
-The clerk interface is a Next.js app deployed on Vercel, with Microsoft Graph ingest for live Outlook
-mail.
+The clerk interface is a Next.js app deployed on Vercel. Judges can upload an official email JSON
+and optional SI/BL files on the Demo page to see the same classify-then-compare path.
 ```
 
 **GitHub Repository Link**

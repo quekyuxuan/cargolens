@@ -77,13 +77,12 @@ Upload `email_512_SI.pdf` and `email_512_BL.pdf` from the bundle, click **Analys
 
 Press **Confirm and file report**.
 
-## 3:30–4:05 · Ingest and follow-up
+## 3:30–4:05 · Live demo upload and follow-up
 
-Open **Outlook**.
+Open **Demo**. Upload `email_001.json` plus the SI and BL text files, press **Run**, then **Done**.
 
-> "The same pipeline takes real mail. Sign in with Microsoft, pick a message, and its attachments go
-> through the identical path — read, compare, land in review. No Azure app handy? Drop two files and
-> you get the same case."
+> "Judges can drop any official email JSON here — comparison, invoice, spam. The same five-way
+> rules classify it. Only comparison requests get the seven-field check, and only scans hit Gemini."
 
 Open **Reminders**.
 

@@ -68,8 +68,7 @@ attachments locally.
 | Reviewed | Comparison-OK mail a clerk marked Done, searchable, restorable to Inbox |
 | Pending Review | The twenty Pending cases, filtered by why they stopped |
 | Reminders | One row per sender who caused a mismatch, ready to chase |
-| New mail | How any later message enters the same pipeline |
-| Outlook | Microsoft Graph import, or drop two files without Azure |
+| Demo | Upload an official email JSON and optional SI/BL; same rules as the 520 |
 
 ## Data handling
 
